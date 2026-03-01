@@ -1,0 +1,224 @@
+# AI-Assisted Haskell Language Server
+
+An editor-integrated language server that combines GHC compiler diagnostics with
+AI-powered explanations to help students learn functional programming. Built as a
+BSc thesis project at Eötvös Loránd University, Faculty of Informatics.
+
+---
+
+## What It Does
+
+When you write Haskell in your editor, the server:
+
+1. **Compiles your code** with GHC in type-check-only mode (`-fno-code -Wall`)
+2. **Parses the output** into structured diagnostics (type errors, scope errors, pattern match warnings, etc.)
+3. **Asks Claude** to explain each error in plain language, adapted to your experience level
+4. **Delivers feedback** inline — red squiggles in the editor, with AI explanations on hover
+
+Beginners get detailed explanations with conceptual context. Students who have seen the
+same error category before get subtler hints that encourage independent thinking.
+
+```
+You type Haskell
+      ↓
+  Language Server (Python / pygls)
+      ↓
+  GHC -fno-code -Wall          ← type-checks without compiling
+      ↓
+  Parser → GHCDiagnostic objects
+      ↓
+  Claude API → adaptive explanation + hint
+      ↓
+  LSP Diagnostic back to editor  ← hover to see AI feedback
+```
+
+---
+
+## Requirements
+
+| Dependency | Version | Notes |
+|---|---|---|
+| Python | ≥ 3.11 | |
+| GHC | ≥ 8.10 | Any recent version works; 9.4+ enables JSON diagnostics |
+| Node.js | ≥ 18 | Only needed for the VS Code extension |
+| Anthropic API key | — | [Get one here](https://console.anthropic.com/) |
+
+**Installing GHC** — the easiest way is via [GHCup](https://www.haskell.org/ghcup/):
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
+```
+
+---
+
+## Installation
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/your-username/ai-haskell-lsp.git
+cd ai-haskell-lsp
+```
+
+### 2. Create a virtual environment and install dependencies
+
+```bash
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+
+pip install -e ".[dev]"          # installs server + dev/test deps
+```
+
+### 3. Configure environment variables
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and set your Anthropic API key:
+
+```
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+```
+
+If GHC is not on your `PATH`, also set:
+```
+GHC_PATH=/path/to/ghc
+```
+
+### 4. Verify GHC is reachable
+
+```bash
+ghc --version
+# The Glorious Glasgow Haskell Compilation System, version 9.x.x
+```
+
+---
+
+## Running the Server
+
+### VS Code (Language Server Protocol mode)
+
+The VS Code extension starts the server automatically. See
+[vscode-extension/README.md](vscode-extension/README.md) for setup.
+
+To start the server manually in LSP stdio mode (for debugging):
+
+```bash
+python -m server.main --mode lsp
+```
+
+### Web Editor mode
+
+Start the WebSocket server that powers the browser-based editor:
+
+```bash
+python -m server.main --mode web
+# Listening on ws://localhost:8765
+```
+
+Then open `web-editor/index.html` in your browser.
+
+---
+
+## Project Structure
+
+```
+ai-haskell-lsp/
+│
+├── server/                    # Python language server
+│   ├── main.py                # Entry point (LSP or Web mode)
+│   ├── lsp_server.py          # pygls LSP server
+│   ├── web_server.py          # FastAPI WebSocket server
+│   │
+│   ├── ghc/                   # GHC compiler bridge
+│   │   ├── models.py          # GHCDiagnostic, SourceSpan, ErrorCategory
+│   │   ├── parser.py          # Parses GHC stderr → structured diagnostics
+│   │   └── bridge.py          # Invokes GHC asynchronously, caches results
+│   │
+│   ├── ai/                    # AI feedback engine
+│   │   ├── engine.py          # Claude API calls + prompt construction
+│   │   ├── prompts.py         # Prompt templates per error category
+│   │   └── context.py         # Tracks user error history, adapts level
+│   │
+│   └── utils/
+│       └── debounce.py        # Debounces rapid document changes
+│
+├── vscode-extension/          # VS Code LSP client (TypeScript)
+│   ├── package.json
+│   └── src/extension.ts
+│
+├── web-editor/                # Browser-based editor (Monaco + WebSocket)
+│   ├── index.html
+│   └── src/
+│
+├── tests/                     # Test suite
+│   ├── test_ghc_parser.py     # GHC output parser unit tests
+│   ├── test_ai_engine.py      # AI prompt + response tests
+│   ├── test_lsp_integration.py
+│   └── fixtures/
+│
+├── .env.example               # Environment variable template
+├── requirements.txt           # Pinned dependencies
+├── pyproject.toml             # Project metadata + tool config
+└── README.md
+```
+
+---
+
+## Running Tests
+
+```bash
+# Run the full test suite
+pytest
+
+# Run only the GHC parser tests (no API key needed)
+pytest tests/test_ghc_parser.py -v
+
+# Run with coverage report
+pytest --cov=server --cov-report=html
+```
+
+The GHC parser tests are fully offline — they use static GHC output fixtures and
+require no GHC installation or API key.
+
+---
+
+## Configuration Reference
+
+All configuration is via environment variables (set in `.env`):
+
+| Variable | Default | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | — | **Required.** Your Anthropic API key |
+| `GHC_PATH` | auto-detected | Path to GHC executable |
+| `CLAUDE_MODEL` | `claude-haiku-4-5-20251001` | Claude model for feedback |
+| `WEB_SERVER_PORT` | `8765` | WebSocket server port |
+| `LOG_LEVEL` | `INFO` | Logging verbosity |
+
+---
+
+## Architecture Notes
+
+**Why Python?** Python offers first-class async support, the official Anthropic SDK,
+and the `pygls` library which provides a complete LSP server implementation out of
+the box. This lets the project focus on the novel contributions — the GHC bridge,
+the parser, and the AI feedback engine — rather than reimplementing LSP plumbing.
+
+**Why GHC `-fno-code`?** This flag tells GHC to perform full lexical, syntactic, and
+semantic analysis (including type inference) without generating any object code or
+interface files. This makes type-checking roughly 3–5× faster than a full compilation,
+which is important for low-latency feedback as the user types.
+
+**Why Claude?** Claude's API is well-suited to this task because it supports a system
+prompt that can be used to establish a consistent pedagogical persona, and because
+Haiku provides a good balance of speed and quality for the interactive feedback use
+case. The model is never asked to fix code — only to explain errors and offer hints,
+which keeps responses focused and avoids over-assistance.
+
+---
+
+## Thesis
+
+This project is the implementation component of a BSc thesis submitted to the
+Department of Programming Languages and Compilers, Eötvös Loránd University,
+Budapest, 2025.
