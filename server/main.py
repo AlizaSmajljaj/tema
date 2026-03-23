@@ -108,6 +108,13 @@ def main() -> None:
         description="AI-Assisted Haskell Language Server",
     )
     parser.add_argument(
+        "--stdio", 
+        action="store_true", 
+        default=False, 
+        help="Ignored — stdio is always used in LSP mode."
+    )
+
+    parser.add_argument(
         "--mode",
         choices=["lsp", "web"],
         default="lsp",

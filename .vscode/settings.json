@@ -1,0 +1,6 @@
+{
+    "git.ignoreLimitWarning": true,
+    "haskellAiLsp.serverPath": "C:\\Python313\\python.exe ",
+    "haskellAiLsp.projectPath": "C:\\Users\\Gorenje\\Desktop\\ai-haskell-lsp",
+    "haskellAiLsp.ghcPath": "C:\\ghcup\\bin\\ghc.exe"
+}

@@ -18,5 +18,6 @@ server/ghc/init.py
 server/ghc/models.py
 server/ghc/parser.py
 tests/test_ai_engine.py
+tests/test_comprehensive.py
 tests/test_ghc_parser.py
 tests/test_lsp_integration.py

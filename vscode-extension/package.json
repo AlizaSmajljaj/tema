@@ -1,0 +1,89 @@
+{
+  "name": "haskell-ai-lsp",
+  "displayName": "Haskell AI Assistant",
+  "description": "AI-powered compiler feedback for Haskell — adaptive explanations and hints for GHC errors, directly in the editor.",
+  "version": "0.1.0",
+  "publisher": "elte-thesis",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Programming Languages", "Education", "Linters"],
+  "keywords": ["haskell", "ghc", "ai", "lsp", "education", "functional programming"],
+  "activationEvents": [
+    "*",
+    "onLanguage:haskell",
+    "workspaceContains:**/*.hs",
+    "workspaceContains:**/*.lhs",
+    "onCommand:haskell-ai-lsp.restart",
+    "onCommand:haskell-ai-lsp.showExplanation"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "haskell",
+        "aliases": ["Haskell", "haskell"],
+        "extensions": [".hs", ".lhs"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "configuration": {
+      "title": "Haskell AI Assistant",
+      "properties": {
+        "haskellAiLsp.ghcPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the GHC executable. Leave empty to use GHC from PATH."
+        },
+        "haskellAiLsp.groqModel": {
+          "type": "string",
+          "default": "llama-3.1-8b-instant",
+          "enum": [
+            "llama-3.1-8b-instant",
+            "llama-3.3-70b-versatile",
+            "mixtral-8x7b-32768"
+          ],
+          "description": "Groq model used for AI explanations. llama-3.1-8b-instant is fastest."
+        },
+        "haskellAiLsp.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the Haskell AI language server."
+        },
+        "haskellAiLsp.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Python interpreter running the server. Defaults to the system Python."
+        },
+        "haskellAiLsp.projectPath": {
+          "type": "string",
+          "default": "",
+          "description": "Full path to the ai-haskell-lsp project folder containing server/main.py."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "haskell-ai-lsp.restart",
+        "title": "Haskell AI: Restart Language Server"
+      },
+      {
+        "command": "haskell-ai-lsp.showExplanation",
+        "title": "Haskell AI: Show Error Explanation"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.24.0"
+  }
+}

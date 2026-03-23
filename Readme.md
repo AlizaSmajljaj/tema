@@ -221,4 +221,4 @@ which keeps responses focused and avoids over-assistance.
 
 This project is the implementation component of a BSc thesis submitted to the
 Department of Programming Languages and Compilers, Eötvös Loránd University,
-Budapest, 2025.
+Budapest, 2026.

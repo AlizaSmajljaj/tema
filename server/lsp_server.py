@@ -65,6 +65,8 @@ from lsprotocol.types import (
     # Code actions
     CodeAction, CodeActionKind, CodeActionParams,
     Command,
+    # Document highlight — visually marks the error token in the editor
+    DocumentHighlight, DocumentHighlightKind, DocumentHighlightParams,
     # Document sync
     DidOpenTextDocumentParams, DidChangeTextDocumentParams,
     DidSaveTextDocumentParams, DidCloseTextDocumentParams,
@@ -74,6 +76,7 @@ from lsprotocol.types import (
     TEXT_DOCUMENT_DID_OPEN, TEXT_DOCUMENT_DID_CHANGE,
     TEXT_DOCUMENT_DID_SAVE, TEXT_DOCUMENT_DID_CLOSE,
     TEXT_DOCUMENT_HOVER, TEXT_DOCUMENT_CODE_ACTION,
+    TEXT_DOCUMENT_DOCUMENT_HIGHLIGHT,
     INITIALIZE,
 )
 from pygls.server import LanguageServer
@@ -387,6 +390,43 @@ def code_action(
     return actions
 
 
+@server.feature(TEXT_DOCUMENT_DOCUMENT_HIGHLIGHT)
+def document_highlight(
+    ls: HaskellLanguageServer, params: DocumentHighlightParams
+) -> list[DocumentHighlight]:
+    """
+    Highlight the exact error token in the editor when the cursor is on it.
+
+    When the student places their cursor on or near a diagnostic, this handler
+    returns a DocumentHighlight that tells the editor to visually mark the
+    precise source range that GHC flagged. This makes it immediately obvious
+    which token caused the error — particularly useful for type errors where
+    the problem token may be a single variable or operator in a long expression.
+
+    Uses DocumentHighlightKind.Read (yellow/blue tint depending on theme)
+    rather than Write, since the student is looking at the problematic
+    expression, not writing to it.
+    """
+    uri      = params.text_document.uri
+    position = params.position
+    cached   = ls._diag_cache.get(uri, [])
+
+    highlights = []
+    for diag in cached:
+        if not _position_in_span(position, diag):
+            continue
+        span_range = _span_to_range(diag)
+        if span_range:
+            highlights.append(
+                DocumentHighlight(
+                    range=span_range,
+                    kind=DocumentHighlightKind.Read,
+                )
+            )
+
+    return highlights
+
+
 # ── Conversion helpers ─────────────────────────────────────────────────────
 
 def _to_lsp_diagnostic(d: GHCDiagnostic) -> Diagnostic:
@@ -468,13 +508,13 @@ def _format_hover(d: GHCDiagnostic) -> str:
 
     # AI content — only if present
     if d.ai_explanation:
-        lines.append("**What this means:**")
+        lines.append("**🤔 Let's think about this:**")
         lines.append("")
         lines.append(d.ai_explanation)
         lines.append("")
 
     if d.ai_hint:
-        lines.append("**Hint:**")
+        lines.append("**💭 Something to consider:**")
         lines.append("")
         lines.append(d.ai_hint)
         lines.append("")

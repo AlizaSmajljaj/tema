@@ -42,19 +42,25 @@ logger = logging.getLogger(__name__)
 #   /abs/path/File.hs:12:4: error:
 #   /abs/path/File.hs:12:4-9: warning: [-Wunused-binds]
 #   /abs/path/File.hs:(12,4)-(13,8): error:
-_HEADER_RE = re.compile(
-    r"^(?P<file>.+\.hs)"
-    r":(?P<loc>"
-        r"(?:\(\d+,\d+\)-\(\d+,\d+\))"   # (line,col)-(line,col) range
-        r"|(?:\d+:\d+-\d+)"               # line:col-col range
-        r"|(?:\d+:\d+)"                   # line:col point
-    r")"
-    r":\s*(?P<severity>error|warning|note)\s*:?"
-    r"(?:\s*\[(?P<code>[^\]]+)\])?"        # optional [-Wflag] or [GHC-NNNN]
-    r"\s*$",
-    re.IGNORECASE,
-)
 
+#_HEADER_RE = re.compile(
+#    r"^(?P<file>.+\.hs)"
+ #   r":(?P<loc>"
+  #      r"(?:\(\d+,\d+\)-\(\d+,\d+\))"   # (line,col)-(line,col) range
+   #     r"|(?:\d+:\d+-\d+)"               # line:col-col range
+   #     r"|(?:\d+:\d+)"                   # line:col point
+   # r")"
+    #r":\s*(?P<severity>error|warning|note)\s*:?"
+    #r"(?:\s*\[(?P<code>[^\]]+)\])?"        # optional [-Wflag] or [GHC-NNNN]
+    #r"\s*$",
+    #re.IGNORECASE,
+#)
+_HEADER_RE = re.compile(
+    r"^(?P<file>.*?):(?P<loc>(\d+:\d+(-\d+)?|\(\d+,\d+\)-\(\d+,\d+\))):"
+    r"\s*(?P<severity>error|warning|note):?"
+    r"(\s+\[(?P<code>.*?)\])?",
+    re.IGNORECASE
+)
 # Version line: "ghc: version 9.4.7"
 _VERSION_RE = re.compile(r"The Glorious Glasgow Haskell Compilation System,\s+version\s+([\d.]+)")
 
