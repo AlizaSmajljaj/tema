@@ -140,7 +140,7 @@ class UserContext:
             "uri": self.uri,
             "total_diagnostics_seen": self.total_diagnostics_seen,
             "categories": {
-                cat.value: {
+                cat.name: {
                     "encounters": stats.encounters,
                     "level": stats.level.name,
                 }

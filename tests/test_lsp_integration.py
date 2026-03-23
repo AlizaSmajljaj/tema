@@ -76,9 +76,10 @@ def warning_diag() -> GHCDiagnostic:
 @pytest.fixture
 def compilation_result(type_error_diag, warning_diag) -> CompilationResult:
     return CompilationResult(
+        file="Main.hs",
         diagnostics=[type_error_diag, warning_diag],
         success=False,
-        raw_output="...",
+        raw_stderr="...",
     )
 
 

@@ -81,10 +81,15 @@ def _run_ghc_sync(source: str, original_path: str) -> CompilationResult:
         return _cache[content_hash]
 
     # --- Write temp file ---
-    # We preserve the original filename so GHC error messages show the real path.
+    # We preserve the original filename so GHC error messages show the real path,
+    # but ensure it has a .hs-like suffix so GHC recognises it as Haskell and
+    # our parser (which historically expected *.hs) can match locations.
     suffix = Path(original_path).suffix or ".hs"
+    base_name = Path(original_path).name
+    if not base_name.endswith(suffix):
+        base_name = base_name + suffix
     tmp_dir = tempfile.mkdtemp(prefix="haskell-lsp-")
-    tmp_path = os.path.join(tmp_dir, Path(original_path).name)
+    tmp_path = os.path.join(tmp_dir, base_name)
 
     try:
         with open(tmp_path, "w", encoding="utf-8") as f:
@@ -218,3 +223,37 @@ async def get_ghc_version() -> Optional[str]:
         return await loop.run_in_executor(_executor, _version)
     except Exception:
         return None
+
+
+class GHCBridge:
+    """
+    Thin object-oriented wrapper around the module-level GHC helpers.
+
+    The LSP and web servers depend on this interface:
+      - async compile(source, uri) → CompilationResult
+      - async get_version() → optional version string
+    """
+
+    def __init__(self, ghc_path: Optional[str] = None) -> None:
+        """
+        Optionally force a specific GHC executable path.
+
+        We propagate the override via the GHC_PATH environment variable so that
+        the existing _find_ghc() helper picks it up.
+        """
+        self._ghc_path = ghc_path
+        if ghc_path:
+            os.environ["GHC_PATH"] = ghc_path
+
+    async def compile(self, source: str, uri: str) -> CompilationResult:
+        """
+        Compile a Haskell source string for a given document URI.
+
+        The URI is passed straight through to run_ghc(), which uses it as the
+        logical file path when mapping GHC diagnostics back to the editor.
+        """
+        return await run_ghc(source, uri)
+
+    async def get_version(self) -> Optional[str]:
+        """Return the installed GHC version string, if available."""
+        return await get_ghc_version()

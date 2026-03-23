@@ -134,7 +134,9 @@ class AIFeedbackEngine:
         model: str | None = None,
         context_manager: ContextManager | None = None,
     ) -> None:
-        self._api_key = api_key or os.environ.get("GROQ_API_KEY", "")
+        # If api_key is explicitly provided (even as an empty string), respect it.
+        # Otherwise, fall back to the environment variable.
+        self._api_key = api_key if api_key is not None else os.environ.get("GROQ_API_KEY", "")
         self._model   = model or os.environ.get("GROQ_MODEL", _DEFAULT_MODEL)
         self._context = context_manager or ContextManager()
         self._client  = _GroqClient(api_key=self._api_key, model=self._model)

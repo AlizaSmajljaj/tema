@@ -39,7 +39,6 @@ def simple_type_error() -> GHCDiagnostic:
         message="Couldn't match expected type 'Int' with actual type '[Char]'",
         category=ErrorCategory.TYPE_ERROR,
         error_code=None,
-        raw_ghc_output="Main.hs:10:5: error: Couldn't match...",
     )
 
 
@@ -52,7 +51,6 @@ def scope_error() -> GHCDiagnostic:
         message="Variable not in scope: myFunc :: Int -> Int",
         category=ErrorCategory.SCOPE_ERROR,
         error_code=None,
-        raw_ghc_output="",
     )
 
 

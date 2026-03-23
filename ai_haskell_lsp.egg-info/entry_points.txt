@@ -1,0 +1,3 @@
+[console_scripts]
+haskell-lsp = server.main:run_lsp
+haskell-lsp-web = server.main:run_web

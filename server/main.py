@@ -95,15 +95,9 @@ def run_web() -> None:
     port = int(os.environ.get("WEB_SERVER_PORT", 8765))
     logger.info("Starting Haskell AI web server on port %d", port)
 
-    try:
-        import uvicorn
-        from server.web_server import app
-        uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
-    except ImportError:
-        logger.error(
-            "uvicorn is not installed. Run: pip install uvicorn[standard]"
-        )
-        sys.exit(1)
+    import uvicorn
+    from server.web_server import app
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 
 # ── CLI ────────────────────────────────────────────────────────────────────
