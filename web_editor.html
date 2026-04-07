@@ -2,311 +2,513 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Haskell AI Tutor</title>
+<title>Haskell Thinking Gym</title>
 <style>
-:root{--bg:#0f1117;--surface:#1a1f2e;--border:#2a3040;--txt:#cdd6f4;--muted:#6b7280;--accent:#10b981;--red:#ef4444;--yellow:#f59e0b;--purple:#a855f7;--blue:#3b82f6;--mono:'Fira Code',monospace;--sans:'Inter',system-ui,sans-serif}
+:root{
+  --bg:#0f1117;--surface:#1a1f2e;--surface2:#222840;
+  --border:#2a3040;--txt:#cdd6f4;--muted:#6b7280;
+  --accent:#10b981;--red:#ef4444;--yellow:#f59e0b;
+  --purple:#a855f7;--blue:#3b82f6;
+  --mono:'Fira Code','Cascadia Code','Consolas',monospace;
+  --sans:'Inter',system-ui,sans-serif;
+}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-#topbar{display:flex;align-items:center;gap:10px;padding:0 16px;height:48px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
-#logo{font-family:Georgia,serif;font-size:18px;color:var(--accent)}
-#ver{font-size:10px;color:var(--muted);margin-right:auto}
-.pill{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
-.pill:hover{border-color:var(--accent);color:var(--accent)}
-.pill.on{background:var(--accent);border-color:var(--accent);color:#000}
-#badge{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;border:1px solid var(--border)}
-#badge .dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+
+/* ── Top bar ── */
+#topbar{display:flex;align-items:center;gap:12px;padding:0 16px;height:46px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+#logo{font-family:Georgia,serif;font-size:17px;color:var(--accent);letter-spacing:-.5px}
+#logo span{font-size:11px;color:var(--muted);margin-left:4px;font-family:var(--sans)}
+#topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+#badge{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid var(--border)}
+#badge .dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
 #badge.connected .dot{background:var(--accent)}
 #badge.err .dot{background:var(--red)}
 #badge.compiling .dot{background:var(--yellow);animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-#runbtn{padding:6px 16px;border-radius:6px;font-size:12px;font-weight:700;background:var(--accent);color:#000;border:none;cursor:pointer;transition:opacity .15s}
+#runbtn{padding:5px 14px;border-radius:6px;font-size:12px;font-weight:700;background:var(--accent);color:#000;border:none;cursor:pointer;transition:opacity .15s}
 #runbtn:disabled{opacity:.4;cursor:not-allowed}
+#runcode-btn{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;background:transparent;color:var(--accent);border:1px solid var(--accent);cursor:pointer;transition:all .15s}
+#runcode-btn:disabled{opacity:.4;cursor:not-allowed}
+#runcode-btn:hover:not(:disabled){background:rgba(16,185,129,.1)}
+
+/* ── Layout ── */
 #main{display:flex;flex:1;overflow:hidden}
-#editor-wrap{flex:1;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--border)}
+
+/* ── Left sidebar — problem browser ── */
+#sidebar{width:240px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--surface)}
+#sidebar-header{padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+#sidebar-header h2{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+#topic-filter{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--txt);font-size:11px;padding:5px 8px;margin-top:6px;outline:none}
+#topic-filter:focus{border-color:var(--accent)}
+#problem-list{flex:1;overflow-y:auto;padding:6px}
+.prob-item{padding:8px 10px;border-radius:6px;cursor:pointer;transition:background .1s;margin-bottom:2px;border:1px solid transparent}
+.prob-item:hover{background:var(--surface2)}
+.prob-item.active{background:var(--surface2);border-color:var(--accent)}
+.prob-title{font-size:12px;font-weight:600;color:var(--txt)}
+.prob-meta{display:flex;align-items:center;gap:6px;margin-top:3px}
+.prob-topic{font-size:10px;color:var(--muted)}
+.prob-diff{display:flex;gap:2px}
+.diff-dot{width:6px;height:6px;border-radius:50%;background:var(--border)}
+.diff-dot.on{background:var(--accent)}
+.diff-dot.hard{background:var(--yellow)}
+.diff-dot.vhard{background:var(--red)}
+#sidebar::-webkit-scrollbar,#problem-list::-webkit-scrollbar{width:3px}
+#sidebar::-webkit-scrollbar-thumb,#problem-list::-webkit-scrollbar-thumb{background:var(--border)}
+
+/* ── Editor area ── */
+#editor-wrap{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
 #editor{flex:1}
-#panel{width:420px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Problem description bar ── */
+#prob-desc{padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);flex-shrink:0;max-height:80px;overflow-y:auto;line-height:1.6;white-space:pre-wrap}
+#prob-desc.hidden{display:none}
+
+/* ── Stuck button ── */
+#stuck-btn{position:absolute;bottom:16px;right:16px;padding:8px 16px;border-radius:20px;background:var(--surface2);border:1px solid var(--yellow);color:var(--yellow);font-size:11px;font-weight:700;cursor:pointer;opacity:0;transition:opacity .5s;pointer-events:none;z-index:10}
+#stuck-btn.visible{opacity:1;pointer-events:all}
+#stuck-btn:hover{background:rgba(245,158,11,.1)}
+
+/* ── Right panel ── */
+#panel{width:380px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;border-left:1px solid var(--border)}
 #panel-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
-.ptab{flex:1;padding:10px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.ptab{flex:1;padding:9px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
 .ptab:hover{color:var(--txt)}
 .ptab.on{color:var(--accent);border-bottom-color:var(--accent)}
 .panel-view{display:none;flex:1;flex-direction:column;overflow:hidden}
 .panel-view.on{display:flex}
-#pn-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;flex-shrink:0}
-#pn-title{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
-#pn-counts{display:flex;gap:6px;font-size:11px;font-weight:700}
+
+/* ── Errors tab ── */
+#pn-header{display:flex;align-items:center;gap:8px;padding:8px 12px;flex-shrink:0}
+#pn-title{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;flex:1}
+#pn-counts{font-size:11px;font-weight:700}
 .ce{color:var(--red)}.cw{color:var(--yellow)}.co{color:var(--accent)}
-.ft{padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;color:var(--muted);background:transparent;border:1px solid transparent}
-.ft:hover{color:var(--txt)}
+.ft{padding:3px 7px;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;color:var(--muted);border:1px solid transparent}
 .ft.on{background:var(--border);color:var(--txt)}
-#dlist{flex:1;overflow-y:auto;padding:0 10px 10px}
-.dc{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;transition:border-color .15s;background:var(--surface);overflow:hidden}
-.dc:hover{border-color:#3a4050}
+#dlist{flex:1;overflow-y:auto;padding:6px 8px 8px}
+#dlist::-webkit-scrollbar{width:3px}
+#dlist::-webkit-scrollbar-thumb{background:var(--border)}
+
+/* Diagnostic card */
+.dc{border:1px solid var(--border);border-radius:7px;margin-bottom:6px;background:var(--surface);overflow:hidden;transition:border-color .15s}
 .dc.active{border-color:var(--accent)}
-.dc-head{padding:10px 12px;display:flex;align-items:flex-start;gap:8px;cursor:pointer}
-.dc-sev{font-size:9px;font-weight:800;letter-spacing:.1em;padding:2px 6px;border-radius:3px;flex-shrink:0;margin-top:1px}
+.dc-head{padding:8px 10px;display:flex;align-items:flex-start;gap:7px;cursor:pointer}
+.dc-sev{font-size:9px;font-weight:800;letter-spacing:.08em;padding:2px 5px;border-radius:3px;flex-shrink:0;margin-top:1px}
 .dc-sev.error{background:rgba(239,68,68,.15);color:var(--red)}
 .dc-sev.warning{background:rgba(245,158,11,.15);color:var(--yellow)}
 .dc-loc{font-size:10px;color:var(--muted);flex-shrink:0}
 .dc-msg{font-family:var(--mono);font-size:10px;color:var(--txt);line-height:1.5;white-space:pre-wrap;word-break:break-word}
-.dc-ai{border-top:1px solid var(--border);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
-.ai-blk{display:flex;flex-direction:column;gap:4px}
-.ai-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:center;gap:5px}
-.ai-lbl::after{content:'';flex:1;height:1px;background:var(--border)}
-.ai-lbl.exp{color:var(--purple)}
+.dc-ai{border-top:1px solid var(--border);padding:8px 10px;display:flex;flex-direction:column;gap:7px}
+.ai-blk{display:flex;flex-direction:column;gap:3px}
+.ai-lbl{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--purple);margin-bottom:2px}
 .ai-lbl.q{color:var(--accent)}
-.ai-txt{font-size:12px;font-weight:300;color:var(--txt);line-height:1.65}
-.ai-txt.q-txt{font-size:13px;font-weight:500;color:#fff;font-style:italic}
-.reply-wrap{border-top:1px solid var(--border);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
-.reply-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
-.reply-row{display:flex;gap:6px}
-.reply-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--txt);font-family:var(--sans);font-size:12px;resize:none;outline:none;line-height:1.5;min-height:36px;max-height:80px;transition:border-color .15s}
+.ai-txt{font-size:12px;font-weight:300;color:var(--txt);line-height:1.6}
+.ai-txt.q-txt{font-size:12px;font-weight:500;color:#e2e8f0;font-style:italic}
+
+/* Reply box */
+.reply-wrap{border-top:1px solid var(--border);padding:8px 10px;background:rgba(16,185,129,.03)}
+.reply-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:5px}
+.reply-row{display:flex;gap:5px}
+.reply-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:6px 9px;color:var(--txt);font-family:var(--sans);font-size:12px;resize:none;outline:none;line-height:1.5;min-height:32px;max-height:72px;transition:border-color .15s}
 .reply-input:focus{border-color:var(--accent)}
 .reply-input::placeholder{color:var(--muted)}
-.reply-btn{padding:7px 14px;border-radius:6px;background:var(--accent);color:#000;border:none;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;align-self:flex-end;transition:opacity .15s}
-.reply-btn:hover{opacity:.85}
-.convo{display:flex;flex-direction:column;gap:6px;padding:8px 12px;border-top:1px solid var(--border)}
-.convo-msg{display:flex;gap:8px}
-.convo-who{font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;flex-shrink:0;width:36px;margin-top:2px}
+.reply-btn{padding:6px 12px;border-radius:5px;background:var(--accent);color:#000;border:none;cursor:pointer;font-size:11px;font-weight:700;align-self:flex-end}
+
+/* Conversation */
+.convo{display:flex;flex-direction:column;gap:5px;padding:6px 10px;border-top:1px solid var(--border);background:rgba(0,0,0,.1)}
+.convo-msg{display:flex;gap:7px}
+.convo-who{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;flex-shrink:0;width:32px;margin-top:2px}
 .convo-who.ai{color:var(--accent)}
 .convo-who.you{color:var(--purple)}
-.convo-txt{font-size:12px;color:var(--txt);line-height:1.6}
+.convo-txt{font-size:12px;color:var(--txt);line-height:1.55}
 .convo-txt.you-txt{color:#a5b4fc}
-.thinking{display:flex;gap:4px;align-items:center;padding:4px 0}
+.thinking{display:flex;gap:3px;align-items:center;padding:2px 0}
 .thinking span{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:bounce .9s infinite}
 .thinking span:nth-child(2){animation-delay:.15s}
 .thinking span:nth-child(3){animation-delay:.3s}
 @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
-#xp-bar{padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0}
-#xp-row{display:flex;justify-content:space-between;margin-bottom:5px}
-#xp-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-#xp-lev{font-size:10px;font-weight:700;color:var(--accent)}
-#xp-track{height:3px;background:var(--border);border-radius:2px}
-#xp-fill{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .6s ease}
-#think-inner{padding:12px;display:flex;flex-direction:column;gap:10px;flex:1;overflow:hidden}
-#think-inner h3{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.1em}
+
+/* ── Think tab ── */
+#think-inner{padding:10px;display:flex;flex-direction:column;gap:8px;flex:1;overflow:hidden}
+#think-inner h3{font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.1em}
 #think-inner p{font-size:11px;color:var(--muted);line-height:1.6}
-#problem-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--txt);font-family:var(--sans);font-size:12px;resize:vertical;min-height:90px;outline:none;line-height:1.6;transition:border-color .15s}
+#problem-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--txt);font-family:var(--sans);font-size:12px;resize:vertical;min-height:80px;outline:none;line-height:1.55;transition:border-color .15s}
 #problem-input:focus{border-color:var(--accent)}
-#decode-btn{width:100%;padding:9px;border-radius:8px;background:var(--accent);color:#000;border:none;cursor:pointer;font-size:12px;font-weight:700;transition:opacity .15s;flex-shrink:0}
-#decode-btn:hover{opacity:.85}
+#decode-btn{width:100%;padding:8px;border-radius:6px;background:var(--accent);color:#000;border:none;cursor:pointer;font-size:12px;font-weight:700;flex-shrink:0}
 #decode-btn:disabled{opacity:.4;cursor:not-allowed}
-#think-convo{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-top:4px}
-.think-msg{display:flex;flex-direction:column;gap:3px}
+#think-convo{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-top:2px}
+#think-convo::-webkit-scrollbar{width:3px}
+#think-convo::-webkit-scrollbar-thumb{background:var(--border)}
+.think-msg{display:flex;flex-direction:column;gap:2px}
 .think-who{font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
 .think-who.ai{color:var(--accent)}
 .think-who.you{color:var(--purple)}
-.think-txt{font-size:12px;line-height:1.65;color:var(--txt)}
+.think-txt{font-size:12px;line-height:1.6;color:var(--txt)}
 .think-txt.you-txt{color:#a5b4fc}
-#think-reply-wrap{display:flex;gap:6px;flex-shrink:0;padding-top:6px;border-top:1px solid var(--border)}
-#think-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--txt);font-family:var(--sans);font-size:12px;outline:none;transition:border-color .15s}
+#think-reply-wrap{display:flex;gap:5px;flex-shrink:0;padding-top:5px;border-top:1px solid var(--border)}
+#think-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:7px 9px;color:var(--txt);font-family:var(--sans);font-size:12px;outline:none;transition:border-color .15s}
 #think-input:focus{border-color:var(--accent)}
-#think-send{padding:8px 14px;border-radius:6px;background:var(--accent);color:#000;border:none;cursor:pointer;font-size:11px;font-weight:700}
-#statusbar{display:flex;align-items:center;gap:16px;padding:0 16px;height:24px;font-size:10px;color:var(--muted);background:var(--surface);border-top:1px solid var(--border);flex-shrink:0}
-#sb-e{color:var(--red);font-weight:700}#sb-w{color:var(--yellow);font-weight:700}.sb-sep{color:var(--border)}
-.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:8px;color:var(--muted);padding:20px;text-align:center}
-.empty-state .big{font-size:28px}.empty-state .title{font-size:13px;font-weight:600;color:var(--txt)}.empty-state .sub{font-size:11px;line-height:1.6}
-.err-highlight-inline{background:rgba(239,68,68,.25);border-bottom:2px solid #ef4444;border-radius:2px}
-.warn-highlight-inline{background:rgba(245,158,11,.25);border-bottom:2px solid #f59e0b;border-radius:2px}
-#dlist::-webkit-scrollbar,#think-convo::-webkit-scrollbar{width:3px}
-#dlist::-webkit-scrollbar-thumb,#think-convo::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+#think-send{padding:7px 12px;border-radius:5px;background:var(--accent);color:#000;border:none;cursor:pointer;font-size:11px;font-weight:700}
+
+/* ── Status bar ── */
+#statusbar{display:flex;align-items:center;gap:14px;padding:0 14px;height:22px;font-size:10px;color:var(--muted);background:var(--surface);border-top:1px solid var(--border);flex-shrink:0}
+#sb-e{color:var(--red);font-weight:700}
+#sb-w{color:var(--yellow);font-weight:700}
+.sb-sep{color:var(--border)}
+#sb-prob{flex:1;text-align:center;color:var(--muted)}
+
+/* Decorations */
+.err-highlight-inline{background:rgba(239,68,68,.2);border-bottom:2px solid #ef4444;border-radius:2px}
+.warn-highlight-inline{background:rgba(245,158,11,.2);border-bottom:2px solid #f59e0b;border-radius:2px}
+
+/* Empty state */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:6px;color:var(--muted);padding:16px;text-align:center}
+.empty-state .big{font-size:24px}
+.empty-state .title{font-size:12px;font-weight:600;color:var(--txt)}
+.empty-state .sub{font-size:11px;line-height:1.5}
+.solved-banner{background:rgba(16,185,129,.1);border:1px solid var(--accent);border-radius:6px;padding:10px 12px;margin-bottom:6px;display:flex;flex-direction:column;gap:4px}
+.solved-banner .s-title{font-size:12px;font-weight:700;color:var(--accent)}
+.solved-banner .s-sub{font-size:11px;color:var(--muted)}
+.solved-banner button{align-self:flex-start;padding:4px 12px;border-radius:4px;background:var(--accent);color:#000;border:none;cursor:pointer;font-size:11px;font-weight:700;margin-top:2px}
 </style>
 </head>
 <body>
+
+<!-- Top bar -->
 <div id="topbar">
-  <span id="logo">&#955;</span>
-  <span id="ver">Haskell AI Tutor v0.2</span>
-  <button class="pill on"  onclick="loadSnip('starter',this)">Starter</button>
-  <button class="pill"     onclick="loadSnip('recursion',this)">Recursion</button>
-  <button class="pill"     onclick="loadSnip('typeError',this)">Type Error</button>
-  <button class="pill"     onclick="loadSnip('patternMatch',this)">Patterns</button>
-  <button class="pill"     onclick="loadSnip('listComp',this)">List Comp</button>
-  <button class="pill"     onclick="loadSnip('maybe',this)">Maybe</button>
-  <button class="pill"     onclick="loadSnip('higherOrder',this)">Higher Order</button>
-  <div id="badge"><div class="dot"></div><span id="badge-txt">Connecting</span></div>
-  <button id="runbtn" onclick="go()" disabled>&#9654; Compile</button>
+  <span id="logo">&#955; <span>Haskell Thinking Gym</span></span>
+  <div id="topbar-right">
+    <div id="badge"><div class="dot"></div><span id="badge-txt">Connecting</span></div>
+    <button id="runbtn" onclick="go()" disabled>&#9654; Compile</button>
+    <button id="runcode-btn" onclick="runCode()" disabled title="Run and check output">&#9654;&#9654; Run</button>
+    <span id="progress-badge" style="font-size:10px;color:var(--muted);padding:3px 8px;border:1px solid var(--border);border-radius:20px;display:none">0 solved</span>
+  </div>
 </div>
+
+<!-- Main -->
 <div id="main">
-  <div id="editor-wrap"><div id="editor"></div></div>
+
+  <!-- Left sidebar: problem browser -->
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <h2>Problems</h2>
+      <select id="topic-filter" onchange="filterProblems()">
+        <option value="all">All topics</option>
+        <option value="Recursion">Recursion</option>
+        <option value="Pattern Matching">Pattern Matching</option>
+        <option value="List Comprehensions">List Comprehensions</option>
+        <option value="Higher Order Functions">Higher Order Functions</option>
+        <option value="Types">Types</option>
+        <option value="Tuples">Tuples</option>
+        <option value="Strings">Strings</option>
+        <option value="Algorithms">Algorithms</option>
+        <option value="Exam Style">Exam Style</option>
+      </select>
+    </div>
+    <div id="problem-list"></div>
+  </div>
+
+  <!-- Editor -->
+  <div id="editor-wrap">
+    <div id="prob-desc" class="hidden"></div>
+    <div id="editor"></div>
+    <button id="stuck-btn" onclick="askStuck()">&#128161; I'm stuck</button>
+    <div id="output-panel" style="display:none;border-top:1px solid var(--border);padding:10px 14px;background:var(--surface);flex-shrink:0;max-height:140px;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">Output</span>
+        <button onclick="document.getElementById('output-panel').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px">&#10005;</button>
+      </div>
+      <pre id="output-text" style="font-family:var(--mono);font-size:12px;color:var(--txt);white-space:pre-wrap;margin:0"></pre>
+    </div>
+  </div>
+
+  <!-- Right panel -->
   <div id="panel">
     <div id="panel-tabs">
       <div class="ptab on" id="tab-errors" onclick="switchTab('errors')">&#9888; Errors</div>
       <div class="ptab"    id="tab-think"  onclick="switchTab('think')">&#129504; Think</div>
     </div>
+
+    <!-- Errors view -->
     <div class="panel-view on" id="view-errors">
       <div id="pn-header">
         <span id="pn-title">Diagnostics</span>
         <div id="pn-counts"><span class="co">&#10003; All clear</span></div>
-        <div style="display:flex;gap:4px">
-          <span class="ft on" onclick="setFilt('all',this)">All</span>
-          <span class="ft"    onclick="setFilt('error',this)">Errors</span>
-          <span class="ft"    onclick="setFilt('warning',this)">Warnings</span>
-        </div>
+        <span class="ft on" onclick="setFilt('all',this)" style="margin-left:4px">All</span>
+        <span class="ft"    onclick="setFilt('error',this)">Err</span>
+        <span class="ft"    onclick="setFilt('warning',this)">Warn</span>
       </div>
       <div id="dlist"></div>
-      <div id="xp-bar">
-        <div id="xp-row"><span id="xp-label">Learning Progress</span><span id="xp-lev">Beginner</span></div>
-        <div id="xp-track"><div id="xp-fill"></div></div>
-      </div>
     </div>
+
+    <!-- Think view -->
     <div class="panel-view" id="view-think">
       <div id="think-inner">
         <h3>Problem Decoder</h3>
-        <p>Paste a problem description. The tutor asks you one question at a time to help you figure out the solution yourself.</p>
-        <textarea id="problem-input" placeholder="Paste the problem here..."></textarea>
-        <button id="decode-btn" onclick="decodeProblem()">Think through this</button>
+        <p>Paste any problem. Get one question at a time — no answers given.</p>
+        <textarea id="problem-input" placeholder="Paste the problem description here..."></textarea>
+        <button id="decode-btn" onclick="decodeProblem()">Think through this &#8594;</button>
         <div id="think-convo"></div>
         <div id="think-reply-wrap" style="display:none">
           <input id="think-input" placeholder="Your answer..." onkeydown="if(event.key==='Enter')sendThinkReply()">
-          <button id="think-send" onclick="sendThinkReply()">Send</button>
+          <button id="think-send" onclick="sendThinkReply()">&#8594;</button>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Status bar -->
 <div id="statusbar">
   Errors <span id="sb-e">0</span>
   <span class="sb-sep">|</span>
   Warnings <span id="sb-w">0</span>
   <span class="sb-sep">|</span>
-  Debounce 700ms
-  <span id="sb-model" style="margin-left:auto">AI &middot; Groq &middot; llama-3.1-8b-instant</span>
+  <span id="sb-prob">No problem selected</span>
+  <span style="margin-left:auto;color:var(--muted)">AI &middot; Groq &middot; llama-3.1-8b-instant</span>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
 <script>
-var WS_URL = 'ws://localhost:8765/ws';
-var DELAY = 700;
+// ── Problem bank ───────────────────────────────────────────────────────────
+var PROBLEMS = [];
+
+PROBLEMS.push({id:"rec1",topic:"Recursion",title:"Sum a list",difficulty:1,
+description:"Write a function that adds all numbers in a list together.\n\nExamples:\n  sumList [1,2,3,4,5]  -->  15\n  sumList []           -->  0",
+stub:["module Main where","","sumList :: [Int] -> Int","sumList xs = undefined  -- replace this","","main :: IO ()","main = do","  print (sumList [1,2,3,4,5])  -- 15","  print (sumList [])            -- 0"].join('\n'),
+hint:"What happens with an empty list? What do you do with one element plus the rest?"});
+
+PROBLEMS.push({id:"rec2",topic:"Recursion",title:"Count elements",difficulty:1,
+description:"Write a function that counts how many elements are in a list.\nDo not use the built-in length.\n\nExamples:\n  myLength [1,2,3]  -->  3\n  myLength []       -->  0",
+stub:["module Main where","","myLength :: [a] -> Int","myLength xs = undefined","","main :: IO ()","main = do","  print (myLength [1,2,3])  -- 3","  print (myLength [])        -- 0"].join('\n'),
+hint:"Each time you take one element off the list, the length goes down by one."});
+
+PROBLEMS.push({id:"rec3",topic:"Recursion",title:"Count odd digits",difficulty:3,
+description:"Write a function that counts how many odd digits are in a non-negative integer.\n\nExamples:\n  countOdds 1234  -->  2  (1 and 3)\n  countOdds 2468  -->  0\n  countOdds 0     -->  0",
+stub:["module Main where","","countOdds :: Int -> Int","countOdds n = undefined","","main :: IO ()","main = do","  print (countOdds 1234)  -- 2","  print (countOdds 2468)  -- 0","  print (countOdds 0)     -- 0"].join('\n'),
+hint:"mod 10 gives the last digit. div 10 removes it. What is your base case?"});
+
+PROBLEMS.push({id:"rec4",topic:"Recursion",title:"Reverse a list",difficulty:2,
+description:"Write a function that reverses a list without using the built-in reverse.\n\nExamples:\n  myReverse [1,2,3]  -->  [3,2,1]\n  myReverse []       -->  []",
+stub:["module Main where","","myReverse :: [a] -> [a]","myReverse xs = undefined","","main :: IO ()","main = do","  print (myReverse [1,2,3])  -- [3,2,1]","  print (myReverse [])        -- []"].join('\n'),
+hint:"Think about where the first element ends up in the reversed list."});
+
+PROBLEMS.push({id:"rec5",topic:"Recursion",title:"Fibonacci",difficulty:3,
+description:"Return the nth Fibonacci number.\nFib(0)=0, Fib(1)=1, Fib(n)=Fib(n-1)+Fib(n-2)\n\nExamples:\n  fib 0  -->  0\n  fib 1  -->  1\n  fib 7  -->  13",
+stub:["module Main where","","fib :: Int -> Int","fib n = undefined","","main :: IO ()","main = do","  print (fib 0)  -- 0","  print (fib 1)  -- 1","  print (fib 7)  -- 13"].join('\n'),
+hint:"This function calls itself TWICE. What are the two base cases?"});
+
+PROBLEMS.push({id:"pat1",topic:"Pattern Matching",title:"Safe head",difficulty:1,
+description:"Return the first element as Maybe, or Nothing if empty.\n\nExamples:\n  safeHead [1,2,3]  -->  Just 1\n  safeHead []       -->  Nothing",
+stub:["module Main where","","safeHead :: [a] -> Maybe a","safeHead xs = undefined","","main :: IO ()","main = do","  print (safeHead [1,2,3])","  print (safeHead ([] :: [Int]))"].join('\n'),
+hint:"You need two patterns: one for empty list, one for non-empty."});
+
+PROBLEMS.push({id:"pat2",topic:"Pattern Matching",title:"Describe a number",difficulty:1,
+description:"Describe a number: negative, zero, small (1-9), or large (10+).\n\nExamples:\n  describe (-3)  -->  \"negative\"\n  describe 0     -->  \"zero\"\n  describe 5     -->  \"small\"\n  describe 42    -->  \"large\"",
+stub:["module Main where","","describe :: Int -> String","describe n = undefined","","main :: IO ()","main = do","  putStrLn (describe (-3))","  putStrLn (describe 0)","  putStrLn (describe 5)","  putStrLn (describe 42)"].join('\n'),
+hint:"Use guards: | n < 0 = ... | n == 0 = ..."});
+
+PROBLEMS.push({id:"pat3",topic:"Pattern Matching",title:"Handle Maybe",difficulty:2,
+description:"Double a number inside a Maybe, or return Nothing.\n\nExamples:\n  doubleIfJust (Just 5)  -->  Just 10\n  doubleIfJust Nothing   -->  Nothing",
+stub:["module Main where","","doubleIfJust :: Maybe Int -> Maybe Int","doubleIfJust mx = undefined","","main :: IO ()","main = do","  print (doubleIfJust (Just 5))","  print (doubleIfJust Nothing)"].join('\n'),
+hint:"Pattern match on the Maybe. What do you do with Just x? What about Nothing?"});
+
+PROBLEMS.push({id:"lc1",topic:"List Comprehensions",title:"Even squares",difficulty:1,
+description:"Using a list comprehension, produce squares of all even numbers from 1 to 20.\n\nExpected: [4,16,36,64,100,144,196,256,324,400]",
+stub:["module Main where","","evenSquares :: [Int]","evenSquares = undefined  -- use a list comprehension","","main :: IO ()","main = print evenSquares"].join('\n'),
+hint:"[expr | x <- range, condition] — what is your range, condition, and expression?"});
+
+PROBLEMS.push({id:"lc2",topic:"List Comprehensions",title:"Pythagorean triples",difficulty:3,
+description:"Find all Pythagorean triples (a,b,c) where a < b < c and all are between 1 and n.\n\ntriples 20 --> [(3,4,5),(5,12,13),(6,8,10),(8,15,17),(9,12,15),(12,16,20)]",
+stub:["module Main where","","triples :: Int -> [(Int,Int,Int)]","triples n = undefined","","main :: IO ()","main = print (triples 20)"].join('\n'),
+hint:"You need three generators and a condition. What is a^2 + b^2 equal to?"});
+
+PROBLEMS.push({id:"lc3",topic:"List Comprehensions",title:"Prime numbers",difficulty:4,
+description:"Return all prime numbers up to n using a list comprehension.\n\nprimesTo 20 --> [2,3,5,7,11,13,17,19]",
+stub:["module Main where","","isPrime :: Int -> Bool","isPrime n = undefined","","primesTo :: Int -> [Int]","primesTo n = undefined","","main :: IO ()","main = print (primesTo 20)"].join('\n'),
+hint:"A number is prime if no number from 2 to sqrt(n) divides it evenly."});
+
+PROBLEMS.push({id:"hof1",topic:"Higher Order Functions",title:"Double all",difficulty:1,
+description:"Using map, double every number in a list.\n\ndoubleAll [1,2,3,4,5] --> [2,4,6,8,10]",
+stub:["module Main where","","doubleAll :: [Int] -> [Int]","doubleAll xs = undefined  -- use map","","main :: IO ()","main = print (doubleAll [1,2,3,4,5])"].join('\n'),
+hint:"map applies a function to every element. What function doubles a number?"});
+
+PROBLEMS.push({id:"hof2",topic:"Higher Order Functions",title:"Filter positives",difficulty:1,
+description:"Using filter, keep only positive numbers.\n\npositives [-1,2,-3,4,-5] --> [2,4]",
+stub:["module Main where","","positives :: [Int] -> [Int]","positives xs = undefined  -- use filter","","main :: IO ()","main = print (positives [-1,2,-3,4,-5])"].join('\n'),
+hint:"filter keeps elements where a predicate is True. What predicate checks positivity?"});
+
+PROBLEMS.push({id:"hof3",topic:"Higher Order Functions",title:"Sum and product with foldr",difficulty:2,
+description:"Using foldr, implement sum and product of a list.\n\nmySum [1,2,3,4,5]     --> 15\nmyProduct [1,2,3,4,5] --> 120",
+stub:["module Main where","","mySum :: [Int] -> Int","mySum xs = undefined  -- use foldr","","myProduct :: [Int] -> Int","myProduct xs = undefined  -- use foldr","","main :: IO ()","main = do","  print (mySum [1,2,3,4,5])","  print (myProduct [1,2,3,4,5])"].join('\n'),
+hint:"foldr f z xs — what is z (starting value) for sum? For product?"});
+
+PROBLEMS.push({id:"hof4",topic:"Higher Order Functions",title:"Alternating squares",difficulty:3,
+description:"Sum squares of evens, subtract squares of odds, from 1 to n.\n\nsumAlternating 5  --> -15\nsumAlternating 10 --> 55",
+stub:["module Main where","","sumAlternating :: Int -> Int","sumAlternating n = undefined","","main :: IO ()","main = do","  print (sumAlternating 5)","  print (sumAlternating 10)"].join('\n'),
+hint:"Think: sum of even squares MINUS sum of odd squares. Use list comprehensions or filter."});
+
+PROBLEMS.push({id:"typ1",topic:"Types",title:"Safe divide",difficulty:2,
+description:"Divide two numbers, returning Nothing if dividing by zero.\n\nsafeDivide 10 2 --> Just 5\nsafeDivide 10 0 --> Nothing",
+stub:["module Main where","","safeDivide :: Int -> Int -> Maybe Int","safeDivide x y = undefined","","main :: IO ()","main = do","  print (safeDivide 10 2)","  print (safeDivide 10 0)"].join('\n'),
+hint:"Check if y is zero first. Return Nothing or Just accordingly."});
+
+PROBLEMS.push({id:"typ2",topic:"Types",title:"Shape area",difficulty:3,
+description:"Define Shape with Circle and Rectangle. Compute area.\n\narea (Circle 5.0)        --> 78.54\narea (Rectangle 3.0 4.0) --> 12.0",
+stub:["module Main where","","data Shape = Circle Double | Rectangle Double Double","","area :: Shape -> Double","area s = undefined","","main :: IO ()","main = do","  print (area (Circle 5.0))","  print (area (Rectangle 3.0 4.0))"].join('\n'),
+hint:"Pattern match on Shape constructors. Circle: pi*r^2. Rectangle: w*h."});
+
+PROBLEMS.push({id:"tup1",topic:"Tuples",title:"Closest point",difficulty:4,
+description:"Given named points and a target, return the name of the closest point.\n\nclosest [(\"A\",(0,0)),(\"B\",(3,4)),(\"C\",(1,1))] (2,2) --> \"C\"",
+stub:["module Main where","","distance :: (Double,Double) -> (Double,Double) -> Double","distance (x1,y1) (x2,y2) = sqrt ((x2-x1)^2 + (y2-y1)^2)","","closest :: [(String,(Double,Double))] -> (Double,Double) -> String","closest points target = undefined","","main :: IO ()","main = do","  let pts = [(\"A\",(0,0)),(\"B\",(3,4)),(\"C\",(1,1))]","  putStrLn (closest pts (2,2))"].join('\n'),
+hint:"Map each point to (name, distance). Find minimum by distance. minimumBy from Data.List helps."});
+
+PROBLEMS.push({id:"tup2",topic:"Tuples",title:"Employee stats",difficulty:4,
+description:"Given (name,age,salary) tuples:\n1. Find names of employees older than 50\n2. Total salary after 10% raise for over-50s\n\nInput: [(\"Alice\",55,1000),(\"Bob\",30,800),(\"Carol\",60,1200)]",
+stub:["module Main where","","seniors :: [(String,Int,Int)] -> [String]","seniors employees = undefined","","totalAfterRaise :: [(String,Int,Int)] -> Double","totalAfterRaise employees = undefined","","main :: IO ()","main = do","  let emps = [(\"Alice\",55,1000),(\"Bob\",30,800),(\"Carol\",60,1200)]","  print (seniors emps)","  print (totalAfterRaise emps)"].join('\n'),
+hint:"Use filter for seniors, map for raises, sum for total. Lambda \\(n,a,s) -> ... destructures tuples."});
+
+PROBLEMS.push({id:"str1",topic:"Strings",title:"Number sequence",difficulty:3,
+description:"Generate a string of numbers from start to end with a step.\n\nnumSeq 1 10 2 --> \"1 3 5 7 9 \"\nnumSeq 0 15 5 --> \"0 5 10 15 \"\nnumSeq 10 1 5 --> \"\"",
+stub:["module Main where","","numSeq :: Int -> Int -> Int -> String","numSeq start end step = undefined","","main :: IO ()","main = do","  putStrLn (numSeq 1 10 2)","  putStrLn (numSeq 0 15 5)","  putStrLn (numSeq 10 1 5)"].join('\n'),
+hint:"Base case: start > end. Recursive: show start ++ \" \" ++ numSeq (start+step) end step."});
+
+PROBLEMS.push({id:"alg1",topic:"Algorithms",title:"Insertion sort",difficulty:4,
+description:"Implement insertion sort on a list of integers.\n\ninsertSort [3,1,4,1,5,9,2,6] --> [1,1,2,3,4,5,6,9]",
+stub:["module Main where","","insert :: Int -> [Int] -> [Int]","insert x [] = [x]","insert x (y:ys)","  | x <= y    = x : y : ys","  | otherwise = y : insert x ys","","insertSort :: [Int] -> [Int]","insertSort xs = undefined  -- use insert","","main :: IO ()","main = print (insertSort [3,1,4,1,5,9,2,6])"].join('\n'),
+hint:"insert is given. insertSort [] = []. For x:xs, insert x into the sorted rest."});
+
+PROBLEMS.push({id:"alg2",topic:"Algorithms",title:"Longest increasing run",difficulty:5,
+description:"Length of the longest contiguous run where each element is exactly 1 more than previous.\n\nlongestRun [1,2,2,3,4]       --> 3\nlongestRun [1,2,3,4,5]       --> 5\nlongestRun [5,4,3,2,1]       --> 1",
+stub:["module Main where","","longestRun :: [Int] -> Int","longestRun xs = undefined","","main :: IO ()","main = do","  print (longestRun [1,2,2,3,4])","  print (longestRun [1,2,3,4,5])","  print (longestRun [5,4,3,2,1])"].join('\n'),
+hint:"Track current run length and max so far. What happens when two adjacent numbers differ by exactly 1?"});
+
+PROBLEMS.push({id:"exam1",topic:"Exam Style",title:"Primes at odd indices",difficulty:4,
+description:"Product of all prime numbers at odd indices (1,3,5,...) in a list.\nReturn 1 if none found.\n\noddIndexPrimes [2,3,5,7,11]  --> 21  (3*7)\noddIndexPrimes [4,6,8,10]    --> 1",
+stub:["module Main where","","isPrime :: Int -> Bool","isPrime n","  | n < 2     = False","  | otherwise = all (\\d -> n `mod` d /= 0) [2..floor (sqrt (fromIntegral n))]","","oddIndexPrimes :: [Int] -> Int","oddIndexPrimes xs = undefined","","main :: IO ()","main = do","  print (oddIndexPrimes [2,3,5,7,11])","  print (oddIndexPrimes [4,6,8,10])"].join('\n'),
+hint:"zip [0..] xs pairs elements with indices. Filter for odd index AND prime. Then product."});
+
+PROBLEMS.push({id:"exam2",topic:"Exam Style",title:"makeNegative",difficulty:3,
+description:"makeNeg: make all numbers negative (0 stays 0).\nmakeNegative: remove from second list all values in makeNeg of first list.\n\nmakeNeg [1,2,3] --> [-1,-2,-3]\nmakeNegative [1,2,3] [-1,3,2,-3,20,1] --> [3,2,20,1]",
+stub:["module Main where","","makeNeg :: [Int] -> [Int]","makeNeg xs = undefined","","makeNegative :: [Int] -> [Int] -> [Int]","makeNegative xs ys = undefined","","main :: IO ()","main = do","  print (makeNeg [1,2,3])","  print (makeNegative [1,2,3] [-1,3,2,-3,20,1])"].join('\n'),
+hint:"makeNeg: negate positives, keep others. makeNegative: filter ys keeping values NOT in (makeNeg xs)."});
+
+PROBLEMS.push({id:"exam3",topic:"Exam Style",title:"Full employee pipeline",difficulty:5,
+description:"Given (name,age,salary):\n1. medianSalary\n2. totalWithRaise (10% for over-50s)\n3. noRaise (names who didn't get raise)\n4. youngHighEarners (under-30 earning over 250)",
+stub:["module Main where","import Data.List (sort)","","type Employee = (String, Int, Int)","","medianSalary :: [Employee] -> Double","medianSalary emps = undefined","","totalWithRaise :: [Employee] -> Double","totalWithRaise emps = undefined","","noRaise :: [Employee] -> [String]","noRaise emps = undefined","","youngHighEarners :: [Employee] -> [String]","youngHighEarners emps = undefined","","main :: IO ()","main = do","  let emps = [(\"John\",23,200),(\"Bob\",60,700),(\"Anna\",38,427),","              (\"Joe\",36,289),(\"Doe\",22,384),(\"Marie\",55,572),(\"Lucy\",37,400)]","  print (medianSalary emps)","  print (totalWithRaise emps)","  print (noRaise emps)","  print (youngHighEarners emps)"].join('\n'),
+hint:"Break into small helpers. Each function does one thing. Sort salaries for median."});
+
+// ── App state ──────────────────────────────────────────────────────────────
+var WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+var DELAY  = 700;
 var editor, ws, timer;
-var activeCard = null;
+var activeCard       = null;
 var activeDecorations = [];
-var filt = 'all';
-var allDiags = [];
-var sessionErrs = 0;
-var convos = {};
-var thinkHistory = [];
-
-// Snippets stored as plain strings — no backtick nesting issues
-var SNIPS = {};
-
-SNIPS.starter = [
-  'module Main where',
-  '',
-  '-- This code compiles correctly.',
-  '-- Try the other snippets for exercises.',
-  '',
-  'factorial :: Int -> Int',
-  'factorial 0 = 1',
-  'factorial n = n * factorial (n - 1)',
-  '',
-  'main :: IO ()',
-  'main = print (factorial 5)'
-].join('\n');
-
-SNIPS.recursion = [
-  'module Main where',
-  '',
-  '-- EXERCISE: Fix sumList.',
-  '-- It should add all numbers in a list.',
-  '-- What is the BASE CASE? (empty list)',
-  '',
-  'sumList :: [Int] -> Int',
-  'sumList (x:xs) = x + sumList xs',
-  '',
-  'main :: IO ()',
-  'main = print (sumList [1,2,3,4,5])'
-].join('\n');
-
-SNIPS.typeError = [
-  'module Main where',
-  '',
-  '-- EXERCISE: Fix the type error.',
-  '-- add expects two Int values.',
-  '-- What type is True?',
-  '',
-  'add :: Int -> Int -> Int',
-  'add x y = x + y',
-  '',
-  'main :: IO ()',
-  'main = print (add 5 True)'
-].join('\n');
-
-SNIPS.patternMatch = [
-  'module Main where',
-  '',
-  '-- EXERCISE: safeHead is missing a case.',
-  '-- What happens with an empty list?',
-  '',
-  'safeHead :: [a] -> Maybe a',
-  'safeHead (x:_) = Just x',
-  '',
-  'main :: IO ()',
-  'main = do',
-  '  print (safeHead [1,2,3])',
-  '  print (safeHead ([] :: [Int]))'
-].join('\n');
-
-SNIPS.listComp = [
-  'module Main where',
-  '',
-  '-- EXERCISE: Fix evenSquares.',
-  '-- Should produce [4,16,36,64,100]',
-  '-- Hint: filter for even, then square',
-  '',
-  'evenSquares :: [Int]',
-  'evenSquares = [x | x <- [1..10]]',
-  '',
-  'main :: IO ()',
-  'main = print evenSquares'
-].join('\n');
-
-SNIPS.maybe = [
-  'module Main where',
-  '',
-  '-- EXERCISE: Fix describeResult.',
-  '-- Handle both Just and Nothing.',
-  '',
-  'safeDivide :: Int -> Int -> Maybe Int',
-  'safeDivide _ 0 = Nothing',
-  'safeDivide x y = Just (x `div` y)',
-  '',
-  'describeResult :: Maybe Int -> String',
-  'describeResult (Just n) = "Got: " ++ show n',
-  '',
-  'main :: IO ()',
-  'main = do',
-  '  putStrLn (describeResult (safeDivide 10 2))',
-  '  putStrLn (describeResult (safeDivide 10 0))'
-].join('\n');
-
-SNIPS.higherOrder = [
-  'module Main where',
-  '',
-  '-- EXERCISE: Fix using map, filter, foldr',
-  '',
-  'doubleAll :: [Int] -> [Int]',
-  'doubleAll xs = xs  -- use map',
-  '',
-  'positives :: [Int] -> [Int]',
-  'positives xs = xs  -- use filter',
-  '',
-  'mySum :: [Int] -> Int',
-  'mySum xs = 0  -- use foldr',
-  '',
-  'main :: IO ()',
-  'main = do',
-  '  print (doubleAll [1,2,3,4,5])',
-  '  print (positives [-1,2,-3,4,-5])',
-  '  print (mySum [1,2,3,4,5])'
-].join('\n');
+var filt             = 'all';
+var allDiags         = [];
+var convos           = {};
+var thinkHistory     = [];
+var currentProblem   = null;
+var sessionId        = 'sess-' + Math.random().toString(36).substr(2,9);
+var solvedProblems   = new Set();
+var stuckTimer       = null;
+var lastErrorCount   = 0;
+var errorPersistTime = 0;
 
 function esc(s) {
-  return String(s)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ── Problem browser ────────────────────────────────────────────────────────
+function filterProblems() {
+  var topic = document.getElementById('topic-filter').value;
+  var list  = document.getElementById('problem-list');
+  list.innerHTML = '';
+  var filtered = topic === 'all' ? PROBLEMS : PROBLEMS.filter(function(p){return p.topic===topic;});
+  filtered.forEach(function(p) {
+    var item = document.createElement('div');
+    item.className = 'prob-item' + (currentProblem && currentProblem.id === p.id ? ' active' : '');
+    item.onclick = function() { loadProblem(p); };
+    var dots = '';
+    for (var i=1; i<=5; i++) {
+      var cls = 'diff-dot';
+      if (i <= p.difficulty) {
+        cls += p.difficulty >= 5 ? ' vhard' : p.difficulty >= 4 ? ' hard' : ' on';
+      }
+      dots += '<div class="'+cls+'"></div>';
+    }
+    item.innerHTML = '<div class="prob-title">'+esc(p.title)+'</div>'
+      + '<div class="prob-meta"><span class="prob-topic">'+esc(p.topic)+'</span>'
+      + '<div class="prob-diff">'+dots+'</div></div>';
+    list.appendChild(item);
+  });
+}
+
+function loadProblem(p) {
+  currentProblem = p;
+  if (editor) {
+    editor.setValue(p.stub);
+    editor.setPosition({lineNumber:1, column:1});
+    editor.focus();
+  }
+  var desc = document.getElementById('prob-desc');
+  desc.textContent = p.description;
+  desc.classList.remove('hidden');
+  document.getElementById('sb-prob').textContent = p.topic + ' — ' + p.title;
+  filterProblems(); // refresh to show active state
+  resetStuckTimer();
+}
+
+// ── Stuck button ───────────────────────────────────────────────────────────
+function resetStuckTimer() {
+  clearTimeout(stuckTimer);
+  document.getElementById('stuck-btn').classList.remove('visible');
+  errorPersistTime = 0;
+}
+
+function checkStuck() {
+  if (allDiags.filter(function(d){return d.severity==='error';}).length > 0) {
+    errorPersistTime += 1;
+    if (errorPersistTime >= 90) { // ~90 seconds of errors
+      document.getElementById('stuck-btn').classList.add('visible');
+    }
+  } else {
+    resetStuckTimer();
+  }
+}
+
+function askStuck() {
+  document.getElementById('stuck-btn').classList.remove('visible');
+  switchTab('think');
+  var prob = currentProblem;
+  var diag = allDiags[0];
+  var context = prob
+    ? 'The student is working on: "' + prob.title + '". Problem: ' + prob.description
+    : 'The student is working on a Haskell problem.';
+  if (diag) context += '\nCurrent error: ' + diag.message;
+
+  thinkHistory = [];
+  document.getElementById('think-convo').innerHTML = '';
+  document.getElementById('think-reply-wrap').style.display = 'none';
+
+  var te = appendThinkThinking();
+  var sys = 'You are a Haskell tutor. A student has been stuck for a while. '
+    + context + '\n'
+    + 'Ask ONE question — the single most important question that will unlock their thinking. '
+    + 'Do not explain. Do not write code. Just ask the one question. Max 1 sentence.';
+
+  callGroq([{role:'system',content:sys},{role:'user',content:'I am stuck.'}])
+    .then(function(r) {
+      thinkHistory.push({role:'assistant',content:r});
+      te.remove();
+      appendThinkMsg('ai', r);
+      document.getElementById('think-reply-wrap').style.display = 'flex';
+      document.getElementById('think-input').focus();
+    })
+    .catch(function() { te.remove(); appendThinkMsg('ai', "I could not reach the AI right now."); });
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
 function switchTab(tab) {
   document.querySelectorAll('.ptab').forEach(function(t){t.classList.remove('on');});
   document.querySelectorAll('.panel-view').forEach(function(v){v.classList.remove('on');});
@@ -314,6 +516,7 @@ function switchTab(tab) {
   document.getElementById('view-'+tab).classList.add('on');
 }
 
+// ── Monaco setup ───────────────────────────────────────────────────────────
 require.config({paths:{vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'}});
 require(['vs/editor/editor.main'], function() {
   monaco.editor.defineTheme('hd', {
@@ -325,54 +528,56 @@ require(['vs/editor/editor.main'], function() {
       {token:'comment', foreground:'4b5563', fontStyle:'italic'}
     ],
     colors:{
-      'editor.background':'#0f1117',
-      'editor.foreground':'#cdd6f4',
-      'editorLineNumber.foreground':'#374151',
-      'editorCursor.foreground':'#10b981',
+      'editor.background':'#0f1117','editor.foreground':'#cdd6f4',
+      'editorLineNumber.foreground':'#374151','editorCursor.foreground':'#10b981',
       'editor.selectionBackground':'#1e3a5f'
     }
   });
 
   editor = monaco.editor.create(document.getElementById('editor'), {
-    value: SNIPS.starter,
-    language: 'haskell',
-    theme: 'hd',
-    fontSize: 14,
-    lineHeight: 22,
-    fontFamily: "'Fira Code','Cascadia Code','Consolas',monospace",
-    fontLigatures: true,
-    minimap: {enabled:false},
-    scrollBeyondLastLine: false,
-    padding: {top:16, bottom:16},
-    cursorBlinking: 'smooth',
-    smoothScrolling: true,
-    renderLineHighlight: 'gutter',
-    overviewRulerLanes: 0,
-    scrollbar: {verticalScrollbarSize:4, horizontalScrollbarSize:4}
+    value:[
+      'module Main where',
+      '',
+      '-- Welcome to the Haskell Thinking Gym!',
+      '-- Select a problem from the left panel to get started.',
+      '-- The goal is to figure it out yourself.',
+      '-- The AI will ask questions, not give answers.',
+      '',
+      'main :: IO ()',
+      'main = putStrLn "Pick a problem!"'
+    ].join('\n'),
+    language:'haskell', theme:'hd',
+    fontSize:14, lineHeight:22,
+    fontFamily:"'Fira Code','Cascadia Code','Consolas',monospace",
+    fontLigatures:true, minimap:{enabled:false},
+    scrollBeyondLastLine:false, padding:{top:16,bottom:16},
+    cursorBlinking:'smooth', smoothScrolling:true,
+    renderLineHighlight:'gutter', overviewRulerLanes:0,
+    scrollbar:{verticalScrollbarSize:4, horizontalScrollbarSize:4}
   });
 
   editor.onDidChangeModelContent(function() {
     clearTimeout(timer);
     timer = setTimeout(go, DELAY);
   });
-
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
-    clearTimeout(timer);
-    go();
+    clearTimeout(timer); go();
   });
-
   editor.onDidChangeCursorPosition(function(e) {
     var ln = e.position.lineNumber;
     document.querySelectorAll('.dc').forEach(function(c) {
-      if (ln >= +c.dataset.sl && ln <= +c.dataset.el && c !== activeCard) {
-        activate(c, false);
-      }
+      if (ln >= +c.dataset.sl && ln <= +c.dataset.el && c !== activeCard) activate(c, false);
     });
   });
 
+  // Stuck timer — check every second
+  setInterval(checkStuck, 1000);
+
+  filterProblems();
   connect();
 });
 
+// ── WebSocket ──────────────────────────────────────────────────────────────
 function setB(txt, cls) {
   var b = document.getElementById('badge');
   b.className = cls || '';
@@ -382,27 +587,13 @@ function setB(txt, cls) {
 function connect() {
   setB('Connecting', '');
   try { ws = new WebSocket(WS_URL); } catch(e) { setB('Offline','err'); return; }
-  ws.onopen = function() {
-    setB('Connected','connected');
-    document.getElementById('runbtn').disabled = false;
-    go();
-  };
-  ws.onclose = function() {
-    setB('Offline','err');
-    document.getElementById('runbtn').disabled = true;
-    setTimeout(connect, 3000);
-  };
+  ws.onopen = function() { setB('Connected','connected'); document.getElementById('runbtn').disabled=false; document.getElementById('runcode-btn').disabled=false; go(); };
+  ws.onclose = function() { setB('Offline','err'); document.getElementById('runbtn').disabled=true; setTimeout(connect,3000); };
   ws.onerror = function() { setB('Error','err'); };
   ws.onmessage = function(e) {
-    var m;
-    try { m = JSON.parse(e.data); } catch(err) { return; }
-    if (m.type === 'diagnostics') {
-      setB('Connected','connected');
-      flash(m.diagnostics.length === 0);
-      render(m.diagnostics || []);
-    } else if (m.type === 'error') {
-      setB('Server Error','err');
-    }
+    var m; try { m=JSON.parse(e.data); } catch(err){return;}
+    if (m.type==='diagnostics') { setB('Connected','connected'); flash(m.diagnostics.length===0); render(m.diagnostics||[]); }
+    else if (m.type==='error') setB('Server Error','err');
   };
 }
 
@@ -412,6 +603,7 @@ function go() {
   ws.send(JSON.stringify({type:'compile', source:editor.getValue(), uri:'web://editor'}));
 }
 
+// ── Render diagnostics ─────────────────────────────────────────────────────
 function render(diags) {
   allDiags = diags;
   activeCard = null;
@@ -426,17 +618,20 @@ function render(diags) {
   var parts = [];
   if (errs)  parts.push('<span class="ce">'+errs+'E</span>');
   if (warns) parts.push('<span class="cw">'+warns+'W</span>');
-  pc.innerHTML = parts.length ? parts.join('') : '<span class="co">&#10003; All clear</span>';
+  pc.innerHTML = parts.length ? parts.join('') : '<span class="co">&#10003; OK</span>';
 
-  if (errs > 0) { sessionErrs = Math.min(sessionErrs + errs, 25); xp(sessionErrs/25); }
+  // If no errors and we have a current problem, mark it solved
+  if (errs === 0 && warns === 0 && currentProblem) {
+    markSolved(currentProblem.id);
+  }
 
   if (editor) {
-    monaco.editor.setModelMarkers(editor.getModel(), 'ghc', diags.map(function(d) {
+    monaco.editor.setModelMarkers(editor.getModel(),'ghc', diags.map(function(d){
       return {
         severity: d.severity==='error' ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
         message: d.message,
-        startLineNumber: d.startLine, startColumn: d.startCol,
-        endLineNumber: d.endLine,     endColumn: Math.max(d.endCol, d.startCol+1)
+        startLineNumber:d.startLine, startColumn:d.startCol,
+        endLineNumber:d.endLine,     endColumn:Math.max(d.endCol, d.startCol+1)
       };
     }));
   }
@@ -444,12 +639,12 @@ function render(diags) {
 }
 
 function renderList(diags) {
-  var list = document.getElementById('dlist');
+  var list     = document.getElementById('dlist');
   var filtered = filt==='all' ? diags : diags.filter(function(d){return d.severity===filt;});
 
-  if (filtered.length === 0) {
+  if (filtered.length===0) {
     list.innerHTML = diags.length===0
-      ? '<div class="empty-state"><div class="big">&#10003;</div><div class="title">No errors</div><div class="sub">Code compiles cleanly.</div></div>'
+      ? '<div class="empty-state"><div class="big">&#10003;</div><div class="title">Compiles cleanly</div><div class="sub">Check your output matches the expected result.</div></div>'
       : '<div class="empty-state"><div class="sub">No '+filt+'s.</div></div>';
     return;
   }
@@ -457,38 +652,31 @@ function renderList(diags) {
   list.innerHTML = '';
   filtered.forEach(function(d, idx) {
     var id     = 'card-'+idx;
-    var hasAI  = d.explanation || d.hint || d.scaffold;
+    var hasAI  = d.explanation || d.hint;
     var sevCls = d.severity==='error' ? 'error' : 'warning';
-    var firstQ = d.hint || d.scaffold || null;
+    var firstQ = d.hint || null;
 
     var c = document.createElement('div');
-    c.className  = 'dc';
-    c.id         = id;
-    c.dataset.sl = d.startLine;
-    c.dataset.el = d.endLine || d.startLine;
+    c.className = 'dc'; c.id = id;
+    c.dataset.sl = d.startLine; c.dataset.el = d.endLine || d.startLine;
 
     var html = '<div class="dc-head">'
       + '<span class="dc-sev '+sevCls+'">'+d.severity.toUpperCase()+'</span>'
-      + '<span class="dc-loc">line '+d.startLine+' col '+d.startCol+'</span>'
+      + '<span class="dc-loc">line '+d.startLine+'</span>'
       + '<span class="dc-msg">'+esc(d.message)+'</span>'
       + '</div>';
 
     if (hasAI) {
       html += '<div class="dc-ai">';
       if (d.explanation) {
-        html += '<div class="ai-blk">'
-          + '<div class="ai-lbl exp">What\'s happening</div>'
-          + '<div class="ai-txt">'+esc(d.explanation)+'</div>'
-          + '</div>';
+        html += '<div class="ai-blk"><div class="ai-lbl">What\'s happening</div>'
+          + '<div class="ai-txt">'+esc(d.explanation)+'</div></div>';
       }
       if (firstQ) {
-        html += '<div class="ai-blk">'
-          + '<div class="ai-lbl q">Think about this</div>'
-          + '<div class="ai-txt q-txt">'+esc(firstQ)+'</div>'
-          + '</div>';
+        html += '<div class="ai-blk"><div class="ai-lbl q">Think about this</div>'
+          + '<div class="ai-txt q-txt">'+esc(firstQ)+'</div></div>';
       }
       html += '</div>';
-
       html += '<div class="reply-wrap">'
         + '<div class="reply-label">Your answer</div>'
         + '<div class="reply-row">'
@@ -496,263 +684,285 @@ function renderList(diags) {
         + ' onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();sendReply(\''+id+'\',this)}"'
         + ' oninput="this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'"'
         + '></textarea>'
-        + '<button class="reply-btn" onclick="sendReplyBtn(\''+id+'\')">Send</button>'
+        + '<button class="reply-btn" onclick="sendReplyBtn(\''+id+'\')">&#8594;</button>'
         + '</div></div>';
     }
 
     c.innerHTML = html;
-
-    if (!convos[id]) {
-      convos[id] = [];
-      if (firstQ) convos[id].push({role:'assistant', content:firstQ});
-    }
+    if (!convos[id]) { convos[id]=[]; if(firstQ) convos[id].push({role:'assistant',content:firstQ}); }
 
     c.querySelector('.dc-head').addEventListener('click', function() {
-      activate(c, true);
-      highlightSpan(d);
-      if (editor) editor.focus();
+      activate(c, true); highlightSpan(d); if(editor) editor.focus();
     });
-
     list.appendChild(c);
   });
 }
 
+// ── Reply handling ─────────────────────────────────────────────────────────
 function sendReplyBtn(cardId) {
   var i = document.getElementById('reply-'+cardId);
   if (i) sendReply(cardId, i);
 }
 
 function sendReply(cardId, inputEl) {
-  var text = inputEl.value.trim();
-  if (!text) return;
-  inputEl.value = '';
-  inputEl.style.height = 'auto';
-
-  var card = document.getElementById(cardId);
-  if (!card) return;
-  if (!convos[cardId]) convos[cardId] = [];
-  convos[cardId].push({role:'user', content:text});
-  appendConvoMsg(card, 'you', text);
+  var text = inputEl.value.trim(); if (!text) return;
+  inputEl.value=''; inputEl.style.height='auto';
+  var card = document.getElementById(cardId); if (!card) return;
+  if (!convos[cardId]) convos[cardId]=[];
+  convos[cardId].push({role:'user',content:text});
+  appendConvoMsg(card,'you',text);
   var thinkEl = appendThinking(card);
 
   var idx  = parseInt(cardId.split('-')[1]);
   var diag = allDiags[idx];
-  var sys  = 'You are a Haskell tutor helping a student understand this GHC error: "'
-    + (diag ? diag.message : 'unknown') + '". Category: '
-    + (diag ? diag.category : 'unknown') + '.\n'
-    + 'RULES: Ask ONE question at a time. NEVER give the answer or write code. '
-    + 'Max 2 sentences. If on right track say so warmly and ask next question. '
-    + 'If wrong gently redirect with a smaller simpler question. '
-    + 'When they understand tell them to try fixing the code. Warm friendly tone.';
+  var prob = currentProblem;
+  var sys  = 'You are a Haskell tutor. The student is working on: '
+    + (prob ? '"' + prob.title + '"' : 'a Haskell problem') + '.\n'
+    + 'The GHC error is: "' + (diag ? diag.message : 'unknown') + '".\n'
+    + 'Category: ' + (diag ? diag.category : 'unknown') + '.\n\n'
+    + 'RULES:\n'
+    + '- Ask ONE question only. Never more.\n'
+    + '- NEVER give the answer or write code.\n'
+    + '- Max 2 sentences.\n'
+    + '- If on right track: affirm warmly + ask next question.\n'
+    + '- If wrong: gently redirect with a smaller simpler question.\n'
+    + '- When they understand: tell them to try fixing the code.\n'
+    + '- Warm friendly tone.';
 
   callGroq([{role:'system',content:sys}].concat(convos[cardId]))
     .then(function(next) {
-      convos[cardId].push({role:'assistant', content:next});
-      thinkEl.remove();
-      appendConvoMsg(card, 'ai', next);
+      convos[cardId].push({role:'assistant',content:next});
+      thinkEl.remove(); appendConvoMsg(card,'ai',next);
     })
-    .catch(function() {
-      thinkEl.remove();
-      appendConvoMsg(card, 'ai', "Couldn't reach AI right now. Try again.");
-    });
+    .catch(function() { thinkEl.remove(); appendConvoMsg(card,'ai',"Couldn't reach AI. Try again."); });
 }
 
 function appendConvoMsg(card, who, text) {
   var convo = card.querySelector('.convo');
   if (!convo) {
-    convo = document.createElement('div');
-    convo.className = 'convo';
+    convo = document.createElement('div'); convo.className='convo';
     var rw = card.querySelector('.reply-wrap');
-    if (rw) card.insertBefore(convo, rw);
-    else card.appendChild(convo);
+    if (rw) card.insertBefore(convo, rw); else card.appendChild(convo);
   }
-  var msg = document.createElement('div');
-  msg.className = 'convo-msg';
-  msg.innerHTML = '<div class="convo-who '+who+'">'+(who==='ai'?'AI':'You')+'</div>'
-    + '<div class="convo-txt '+(who==='you'?'you-txt':'')+'">'+esc(text)+'</div>';
-  convo.appendChild(msg);
-  convo.scrollTop = convo.scrollHeight;
-  return msg;
+  var msg = document.createElement('div'); msg.className='convo-msg';
+  msg.innerHTML='<div class="convo-who '+who+'">'+(who==='ai'?'AI':'You')+'</div>'
+    +'<div class="convo-txt '+(who==='you'?'you-txt':'')+'">'+esc(text)+'</div>';
+  convo.appendChild(msg); convo.scrollTop=convo.scrollHeight; return msg;
 }
 
 function appendThinking(card) {
   var convo = card.querySelector('.convo');
   if (!convo) {
-    convo = document.createElement('div');
-    convo.className = 'convo';
-    var rw = card.querySelector('.reply-wrap');
-    if (rw) card.insertBefore(convo, rw);
-    else card.appendChild(convo);
+    convo=document.createElement('div'); convo.className='convo';
+    var rw=card.querySelector('.reply-wrap');
+    if(rw) card.insertBefore(convo,rw); else card.appendChild(convo);
   }
-  var el = document.createElement('div');
-  el.className = 'convo-msg';
-  el.innerHTML = '<div class="convo-who ai">AI</div>'
-    + '<div class="thinking"><span></span><span></span><span></span></div>';
-  convo.appendChild(el);
-  convo.scrollTop = convo.scrollHeight;
-  return el;
+  var el=document.createElement('div'); el.className='convo-msg';
+  el.innerHTML='<div class="convo-who ai">AI</div><div class="thinking"><span></span><span></span><span></span></div>';
+  convo.appendChild(el); convo.scrollTop=convo.scrollHeight; return el;
 }
 
+// ── Think tab ──────────────────────────────────────────────────────────────
 function decodeProblem() {
-  var input = document.getElementById('problem-input').value.trim();
-  if (!input) return;
-  var btn = document.getElementById('decode-btn');
-  btn.disabled = true;
-  btn.textContent = 'Thinking...';
-  thinkHistory = [];
-  document.getElementById('think-convo').innerHTML = '';
-  appendThinkMsg('you', input);
-  thinkHistory.push({role:'user', content:input});
-  var te = appendThinkThinking();
+  var input = document.getElementById('problem-input').value.trim(); if(!input) return;
+  var btn = document.getElementById('decode-btn'); btn.disabled=true; btn.textContent='Thinking...';
+  thinkHistory=[]; document.getElementById('think-convo').innerHTML='';
+  appendThinkMsg('you',input);
+  thinkHistory.push({role:'user',content:input});
+  var te=appendThinkThinking();
 
-  var sys = 'You are a Haskell tutor. A student pasted a functional programming problem. '
-    + 'Ask ONE question to help them figure out the solution structure themselves. '
-    + 'DO NOT solve it. DO NOT write code. '
-    + 'First identify the pattern: number recursion (mod/div), list recursion (x:xs), '
-    + 'list comprehension, tuple processing, higher order functions, string building, or maybe handling. '
-    + 'Then ask THE single most important first question. Good examples: '
-    + '"What type does this take and return?", '
-    + '"What is the smallest possible input and what should happen with it?", '
-    + '"Can you describe the answer using only nouns, not steps?", '
-    + '"What does just one step of this problem look like?" '
-    + 'ONE question only. Maximum 2 sentences. Warm encouraging tone.';
+  var sys='You are a Haskell tutor. A student pasted a functional programming problem. '
+    +'Ask ONE question to help them figure out the solution structure. DO NOT solve it. DO NOT write code. '
+    +'Identify the pattern first (number recursion with mod/div, list recursion with x:xs, '
+    +'list comprehension, tuple processing, higher order functions, string building, maybe handling). '
+    +'Then ask THE single most important first question. '
+    +'Good examples: "What type does this take and return?", '
+    +'"What is the smallest possible input and what should happen with it?", '
+    +'"Can you describe the answer using only nouns, not steps?", '
+    +'"What does just one step of this problem look like?" '
+    +'ONE question only. Max 2 sentences. Warm tone.';
 
   callGroq([{role:'system',content:sys}].concat(thinkHistory))
     .then(function(r) {
-      thinkHistory.push({role:'assistant', content:r});
-      te.remove();
-      appendThinkMsg('ai', r);
-      document.getElementById('think-reply-wrap').style.display = 'flex';
+      thinkHistory.push({role:'assistant',content:r});
+      te.remove(); appendThinkMsg('ai',r);
+      document.getElementById('think-reply-wrap').style.display='flex';
       document.getElementById('think-input').focus();
     })
-    .catch(function() {
-      te.remove();
-      appendThinkMsg('ai', "Couldn't reach AI. Check your connection and try again.");
-    })
-    .finally(function() {
-      btn.disabled = false;
-      btn.textContent = 'Think through this';
-    });
+    .catch(function() { te.remove(); appendThinkMsg('ai',"Couldn't reach AI."); })
+    .finally ? (function(){btn.disabled=false;btn.textContent='Think through this \u2192';})() : null;
+
+  // Ensure button is re-enabled even if .finally not supported
+  setTimeout(function(){btn.disabled=false;btn.textContent='Think through this \u2192';},15000);
 }
 
 function sendThinkReply() {
-  var input = document.getElementById('think-input');
-  var text  = input.value.trim();
-  if (!text) return;
-  input.value = '';
-  appendThinkMsg('you', text);
-  thinkHistory.push({role:'user', content:text});
-  var te = appendThinkThinking();
+  var input=document.getElementById('think-input');
+  var text=input.value.trim(); if(!text) return;
+  input.value='';
+  appendThinkMsg('you',text);
+  thinkHistory.push({role:'user',content:text});
+  var te=appendThinkThinking();
 
-  var sys = 'You are a Haskell tutor in a Socratic dialogue helping a student think through a functional programming problem. '
-    + 'RULES: Ask ONE follow-up question based on their answer. '
-    + 'If they are on the right track affirm them briefly then ask the next question. '
-    + 'If they are wrong gently redirect with a smaller simpler question. '
-    + 'Never write code. Never give the answer directly. '
-    + 'Build toward understanding: type signature, then base case, then recursive/comprehension step, then helper functions. '
-    + 'When they can answer all of those tell them they are ready to write the code. '
-    + 'Maximum 2 sentences per response. Warm encouraging tone.';
+  var sys='You are a Haskell tutor in a Socratic dialogue. '
+    +'RULES: ONE follow-up question only. '
+    +'If right track: affirm briefly then next question. '
+    +'If wrong: redirect with smaller simpler question. '
+    +'Never write code. Never give the answer. '
+    +'Build toward: type signature > base case > recursive step > helpers. '
+    +'When they can answer all: tell them they are ready to write the code. '
+    +'Max 2 sentences. Warm tone.';
 
   callGroq([{role:'system',content:sys}].concat(thinkHistory))
-    .then(function(r) {
-      thinkHistory.push({role:'assistant', content:r});
-      te.remove();
-      appendThinkMsg('ai', r);
-    })
-    .catch(function() {
-      te.remove();
-      appendThinkMsg('ai', "Connection error. Try again.");
-    });
+    .then(function(r) { thinkHistory.push({role:'assistant',content:r}); te.remove(); appendThinkMsg('ai',r); })
+    .catch(function() { te.remove(); appendThinkMsg('ai',"Connection error."); });
 }
 
-function appendThinkMsg(who, text) {
-  var convo = document.getElementById('think-convo');
-  var msg   = document.createElement('div');
-  msg.className = 'think-msg';
-  msg.innerHTML = '<div class="think-who '+who+'">'+(who==='ai'?'AI Tutor':'You')+'</div>'
-    + '<div class="think-txt '+(who==='you'?'you-txt':'')+'">'+esc(text)+'</div>';
-  convo.appendChild(msg);
-  convo.scrollTop = convo.scrollHeight;
+function appendThinkMsg(who,text) {
+  var convo=document.getElementById('think-convo');
+  var msg=document.createElement('div'); msg.className='think-msg';
+  msg.innerHTML='<div class="think-who '+who+'">'+(who==='ai'?'AI Tutor':'You')+'</div>'
+    +'<div class="think-txt '+(who==='you'?'you-txt':'')+'">'+esc(text)+'</div>';
+  convo.appendChild(msg); convo.scrollTop=convo.scrollHeight;
 }
 
 function appendThinkThinking() {
-  var convo = document.getElementById('think-convo');
-  var el    = document.createElement('div');
-  el.className = 'think-msg';
-  el.innerHTML = '<div class="think-who ai">AI Tutor</div>'
-    + '<div class="thinking"><span></span><span></span><span></span></div>';
-  convo.appendChild(el);
-  convo.scrollTop = convo.scrollHeight;
-  return el;
+  var convo=document.getElementById('think-convo');
+  var el=document.createElement('div'); el.className='think-msg';
+  el.innerHTML='<div class="think-who ai">AI Tutor</div><div class="thinking"><span></span><span></span><span></span></div>';
+  convo.appendChild(el); convo.scrollTop=convo.scrollHeight; return el;
 }
 
+// ── Groq proxy ─────────────────────────────────────────────────────────────
 function callGroq(messages) {
   return fetch('/api/chat', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({messages: messages})
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({messages:messages})
   })
-  .then(function(resp) {
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    return resp.json();
-  })
+  .then(function(resp) { if(!resp.ok) throw new Error('HTTP '+resp.status); return resp.json(); })
   .then(function(data) {
+    // Update status bar to show which provider responded
+    var provider = data.provider || 'ai';
+    var modelEl = document.getElementById('sb-model');
+    if (modelEl) {
+      if (provider === 'ollama') {
+        modelEl.textContent = 'AI · Ollama (local)';
+        modelEl.style.color = 'var(--yellow)';
+      } else {
+        modelEl.textContent = 'AI · Groq · llama-3.1-8b-instant';
+        modelEl.style.color = '';
+      }
+    }
     return data.content;
   });
 }
 
+// ── Highlight & activate ───────────────────────────────────────────────────
 function highlightSpan(d) {
   if (!editor) return;
-  activeDecorations = editor.deltaDecorations(activeDecorations, []);
+  activeDecorations=editor.deltaDecorations(activeDecorations,[]);
   editor.revealLineInCenter(d.startLine);
-  editor.setPosition({lineNumber:d.startLine, column:d.startCol});
-  var endCol = d.startLine===d.endLine ? Math.max(d.endCol, d.startCol+1) : d.endCol;
-  activeDecorations = editor.deltaDecorations([], [{
-    range: new monaco.Range(d.startLine, d.startCol, d.endLine||d.startLine, endCol),
-    options: {
-      inlineClassName: d.severity==='error' ? 'err-highlight-inline' : 'warn-highlight-inline',
-      overviewRuler: {
-        color: d.severity==='error' ? '#ef4444' : '#f59e0b',
-        position: monaco.editor.OverviewRulerLane.Full
-      }
+  editor.setPosition({lineNumber:d.startLine,column:d.startCol});
+  var endCol=d.startLine===d.endLine?Math.max(d.endCol,d.startCol+1):d.endCol;
+  activeDecorations=editor.deltaDecorations([],[{
+    range:new monaco.Range(d.startLine,d.startCol,d.endLine||d.startLine,endCol),
+    options:{
+      inlineClassName:d.severity==='error'?'err-highlight-inline':'warn-highlight-inline',
+      overviewRuler:{color:d.severity==='error'?'#ef4444':'#f59e0b',position:monaco.editor.OverviewRulerLane.Full}
     }
   }]);
 }
 
-function activate(c, scroll) {
-  if (activeCard) activeCard.classList.remove('active');
-  activeCard = c;
-  c.classList.add('active');
-  if (scroll) c.scrollIntoView({block:'nearest', behavior:'smooth'});
+function activate(c,scroll) {
+  if(activeCard) activeCard.classList.remove('active');
+  activeCard=c; c.classList.add('active');
+  if(scroll) c.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 
-function setFilt(f, btn) {
-  filt = f;
+function setFilt(f,btn) {
+  filt=f;
   document.querySelectorAll('.ft').forEach(function(t){t.classList.remove('on');});
   btn.classList.add('on');
   renderList(allDiags);
 }
 
-function loadSnip(k, btn) {
-  if (!editor) return;
-  document.querySelectorAll('.pill').forEach(function(p){p.classList.remove('on');});
-  btn.classList.add('on');
-  editor.setValue(SNIPS[k]);
-  editor.setPosition({lineNumber:1, column:1});
-  editor.focus();
-}
-
-function xp(r) {
-  document.getElementById('xp-fill').style.width = Math.round(r*100)+'%';
-  var lvls = ['Beginner','Novice','Intermediate','Advanced','Expert'];
-  document.getElementById('xp-lev').textContent = lvls[Math.min(Math.floor(r*(lvls.length-1)), lvls.length-1)];
-}
-
 function flash(ok) {
-  var el = document.getElementById('editor-wrap');
-  el.style.transition = 'box-shadow .2s';
-  el.style.boxShadow  = ok ? 'inset 0 0 0 1px #10b981' : '';
-  setTimeout(function(){ el.style.boxShadow = ''; }, 600);
+  var el=document.getElementById('editor-wrap');
+  el.style.transition='box-shadow .2s';
+  el.style.boxShadow=ok?'inset 0 0 0 1px #10b981':'';
+  setTimeout(function(){el.style.boxShadow='';},600);
+}
+
+function runCode() {
+  var btn = document.getElementById('runcode-btn');
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+  var source = editor ? editor.getValue() : '';
+  fetch('/api/run', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({source:source})
+  })
+  .then(function(r){return r.json();})
+  .then(function(data) {
+    var panel = document.getElementById('output-panel');
+    var text  = document.getElementById('output-text');
+    panel.style.display = 'block';
+    if (data.error) {
+      text.style.color = 'var(--red)';
+      text.textContent = data.error;
+    } else {
+      text.style.color = 'var(--txt)';
+      text.textContent = data.output || '(no output)';
+    }
+    btn.disabled = false;
+    btn.textContent = '►► Run';
+  })
+  .catch(function() {
+    btn.disabled = false;
+    btn.textContent = '►► Run';
+  });
+}
+
+function markSolved(problemId) {
+  if (solvedProblems.has(problemId)) return;
+  solvedProblems.add(problemId);
+  var badge = document.getElementById('progress-badge');
+  badge.style.display = 'inline-block';
+  badge.textContent = solvedProblems.size + ' solved';
+  fetch('/api/progress', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({session_id:sessionId, problem_id:problemId})
+  }).catch(function(){});
+  showSolvedBanner();
+}
+
+function showSolvedBanner() {
+  var list = document.getElementById('dlist');
+  var prob = currentProblem;
+  if (!prob) return;
+  var next = getNextProblem(prob);
+  var banner = document.createElement('div');
+  banner.className = 'solved-banner';
+  banner.innerHTML = '<div class="s-title">&#10003; Compiles cleanly!</div>'
+    + '<div class="s-sub">' + (next ? 'Ready for the next one?' : 'You\'ve done them all in this topic!') + '</div>'
++ (next ? '<button onclick="loadProblemById(\'' + next.id + '\')">Next: ' + next.title + ' →</button>' : '');  
+list.insertBefore(banner, list.firstChild);
+}
+
+function getNextProblem(current) {
+  var sameTopic = PROBLEMS.filter(function(p){ return p.topic===current.topic && p.id!==current.id && !solvedProblems.has(p.id); });
+  if (sameTopic.length > 0) return sameTopic.reduce(function(a,b){return a.difficulty<=b.difficulty?a:b;});
+  var otherTopic = PROBLEMS.filter(function(p){ return p.topic!==current.topic && !solvedProblems.has(p.id); });
+  if (otherTopic.length > 0) return otherTopic.reduce(function(a,b){return a.difficulty<=b.difficulty?a:b;});
+  return null;
+}
+
+function loadProblemById(id) {
+  var p = PROBLEMS.filter(function(p){return p.id===id;})[0];
+  if (p) loadProblem(p);
 }
 </script>
 </body>

@@ -1,23 +1,12 @@
-FROM python:3.11-slim
+FROM haskell:9.4
 
-# Install GHC via apt (smaller than ghcup for Docker)
-RUN apt-get update && apt-get install -y \
-    ghc \
-    curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y python3 python3-pip python3-venv
 
 WORKDIR /app
-
-# Copy requirements and install Python deps
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --break-system-packages -r requirements.txt
 
-# Copy the whole project
 COPY . .
 
-# Expose port
 EXPOSE 8765
-
-# Start the web server
-CMD ["python", "-m", "server.main", "--mode", "web"]
+CMD ["python3", "-m", "uvicorn", "server.web_server:app", "--host", "0.0.0.0", "--port", "8765"]

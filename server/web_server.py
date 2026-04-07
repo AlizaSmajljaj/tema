@@ -1,8 +1,17 @@
 """
 web_server.py — FastAPI WebSocket server for the Haskell AI Tutor web editor.
+
+Endpoints:
+  GET  /             — serves web_editor.html
+  GET  /health       — health check
+  POST /api/chat     — proxies Groq API calls (keeps API key off browser)
+  POST /api/progress — tracks which problems a session has solved
+  GET  /api/next     — suggests next problem based on session progress
+  WS   /ws           — WebSocket compile + run endpoint
 """
+
 from __future__ import annotations
-import asyncio, json, logging, os
+import asyncio, json, logging, os, subprocess, tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -28,6 +37,12 @@ _engine  = AIFeedbackEngine(context_manager=_context)
 
 MAX_AI_ENRICHMENTS = 5
 
+# Session progress: session_id -> set of solved problem ids
+# Simple in-memory store (resets on server restart, good enough for exam prep)
+_session_progress: dict[str, set] = {}
+
+
+# ── Serve the web editor ───────────────────────────────────────────────────
 
 @app.get("/")
 async def serve_editor():
@@ -42,37 +57,145 @@ async def serve_editor():
     return JSONResponse({"error": "web_editor.html not found."}, status_code=404)
 
 
+# ── Health check ───────────────────────────────────────────────────────────
+
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "sessions": len(_context)}
 
+
+# ── Groq API proxy ─────────────────────────────────────────────────────────
 
 @app.post("/api/chat")
 async def chat_proxy(request: Request):
+    """
+    Proxy AI calls — tries Groq first, falls back to Ollama.
+    This means the tool works even without internet if Ollama is running.
+    """
+    body     = await request.json()
+    messages = body.get("messages", [])
+
+    # ── Try Groq first ─────────────────────────────────────────────────
     api_key = os.environ.get("GROQ_API_KEY", "")
-    if not api_key:
-        return JSONResponse({"content": "GROQ_API_KEY not configured on server."})
+    if api_key:
+        try:
+            resp = req_lib.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model":      os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant"),
+                    "max_tokens": 250,
+                    "messages":   messages,
+                },
+                timeout=15,
+            )
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+            logger.debug("chat_proxy: used Groq")
+            return JSONResponse({"content": content, "provider": "groq"})
+        except Exception as exc:
+            logger.warning("Groq failed (%s), trying Ollama fallback", exc)
+
+    # ── Fall back to Ollama ────────────────────────────────────────────
+    ollama_model = os.environ.get("OLLAMA_MODEL", "llama3.2")
+    ollama_url   = os.environ.get("OLLAMA_URL",   "http://localhost:11434")
     try:
-        body     = await request.json()
-        messages = body.get("messages", [])
         resp = req_lib.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": os.environ.get("GROQ_MODEL","llama-3.1-8b-instant"), "max_tokens": 250, "messages": messages},
-            timeout=15,
+            f"{ollama_url}/api/chat",
+            json={
+                "model":    ollama_model,
+                "messages": messages,
+                "stream":   False,
+                "options":  {"num_predict": 250},
+            },
+            timeout=30,
         )
         resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"]
-        return JSONResponse({"content": content})
+        content = resp.json()["message"]["content"]
+        logger.info("chat_proxy: used Ollama fallback (model=%s)", ollama_model)
+        return JSONResponse({"content": content, "provider": "ollama"})
+    except Exception as exc2:
+        logger.warning("Ollama also failed: %s", exc2)
+
+    return JSONResponse({"content": "AI unavailable — check your GROQ_API_KEY or start Ollama."})
+
+
+# ── Progress tracking ──────────────────────────────────────────────────────
+
+@app.post("/api/progress")
+async def mark_solved(request: Request):
+    """Mark a problem as solved for a session."""
+    body       = await request.json()
+    session_id = body.get("session_id", "default")
+    problem_id = body.get("problem_id", "")
+    if session_id not in _session_progress:
+        _session_progress[session_id] = set()
+    _session_progress[session_id].add(problem_id)
+    return JSONResponse({
+        "solved": list(_session_progress[session_id]),
+        "count":  len(_session_progress[session_id]),
+    })
+
+
+@app.get("/api/progress/{session_id}")
+async def get_progress(session_id: str):
+    """Get progress for a session."""
+    solved = list(_session_progress.get(session_id, set()))
+    return JSONResponse({"solved": solved, "count": len(solved)})
+
+
+# ── Run code and capture output ────────────────────────────────────────────
+
+@app.post("/api/run")
+async def run_code(request: Request):
+    """
+    Compile and RUN Haskell code, returning stdout.
+    Used by the 'Check output' feature.
+    Only runs if there are no compile errors first.
+    """
+    body   = await request.json()
+    source = body.get("source", "")
+    if not source.strip():
+        return JSONResponse({"output": "", "error": "Empty source"})
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            src_path = os.path.join(tmpdir, "Main.hs")
+            exe_path = os.path.join(tmpdir, "Main")
+            with open(src_path, "w", encoding="utf-8") as f:
+                f.write(source)
+
+            # Compile with full code generation (not -fno-code)
+            compile_result = subprocess.run(
+                ["ghc", "-o", exe_path, src_path],
+                capture_output=True, text=True, timeout=30,
+                cwd=tmpdir,
+            )
+            if compile_result.returncode != 0:
+                return JSONResponse({
+                    "output": "",
+                    "error":  "Compilation failed — fix errors first.",
+                })
+
+            # Run the executable
+            run_result = subprocess.run(
+                [exe_path],
+                capture_output=True, text=True, timeout=10,
+                cwd=tmpdir,
+            )
+            return JSONResponse({
+                "output": run_result.stdout,
+                "error":  run_result.stderr if run_result.returncode != 0 else "",
+            })
+    except subprocess.TimeoutExpired:
+        return JSONResponse({"output": "", "error": "Execution timed out (10s limit)."})
+    except FileNotFoundError:
+        return JSONResponse({"output": "", "error": "GHC not found. Is it installed?"})
     except Exception as exc:
-        logger.warning("chat_proxy error: %s", exc)
-        return JSONResponse({"content": f"AI unavailable: {exc}"})
+        return JSONResponse({"output": "", "error": str(exc)})
 
 
-@app.get("/context")
-async def get_context():
-    return JSONResponse({"sessions": len(_context)})
-
+# ── Diagnostic conversion ──────────────────────────────────────────────────
 
 def _diagnostic_to_dict(d: GHCDiagnostic) -> dict:
     return {
@@ -88,6 +211,8 @@ def _diagnostic_to_dict(d: GHCDiagnostic) -> dict:
         "scaffold":    getattr(d, "ai_scaffold", ""),
     }
 
+
+# ── WebSocket compile endpoint ─────────────────────────────────────────────
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -122,9 +247,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 payload   = json.dumps({
                     "type":        "diagnostics",
                     "diagnostics": [_diagnostic_to_dict(d) for d in all_diags],
+                    "clean":       len(all_diags) == 0,
                 })
                 await websocket.send_text(payload)
-                logger.info("Compiled %s: %d diagnostics (%d AI-enriched)", uri, len(all_diags), len(enriched))
+                logger.info("Compiled %s: %d diagnostics (%d AI-enriched)",
+                            uri, len(all_diags), len(enriched))
             except Exception as exc:
                 logger.error("Compile error for %s: %s", uri, exc)
                 await websocket.send_text(json.dumps({"type":"error","message":str(exc)}))
@@ -132,6 +259,8 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected")
 
+
+# ── Entry point ────────────────────────────────────────────────────────────
 
 def start(port: int = 8765):
     logger.info("Starting Haskell AI web server on port %d", port)
