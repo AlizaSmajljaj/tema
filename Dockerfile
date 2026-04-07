@@ -9,4 +9,4 @@ RUN pip3 install --break-system-packages -r requirements.txt
 COPY . .
 
 EXPOSE 8765
-CMD ["python3", "-m", "uvicorn", "server.web_server:app", "--host", "0.0.0.0", "--port", "8765"]
+CMD ["sh", "-c", "python3 -m uvicorn server.web_server:app --host 0.0.0.0 --port ${PORT:-8765}"]
