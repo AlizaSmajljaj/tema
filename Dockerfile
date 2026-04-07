@@ -1,6 +1,7 @@
 FROM haskell:9.8
 
-RUN apt-get update && apt-get install -y python3 python3-pip python3-venv
+RUN apt-get update && apt-get install -y python3 python3-pip python3-venv && \
+    ln -s /usr/bin/python3 /usr/bin/python
 
 WORKDIR /app
 COPY requirements.txt .
