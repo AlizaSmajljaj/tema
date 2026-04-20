@@ -1,14 +1,6 @@
 """
 database.py — SQLite database for user persistence.
-
-Stores:
-  - Users (id, username, token, created_at)
-  - Sessions (user_id, problem_id, code, solved, timestamp)
-  - Conversations (user_id, problem_id, role, content, timestamp)
-  - Progress (user_id, category, encounter_count)
-
-Zero external dependencies beyond Python stdlib.
-Single file database — easy to backup, easy to deploy.
+Updated for seamless Railway deployment with persistent Volumes.
 """
 
 import sqlite3
@@ -19,17 +11,36 @@ import os
 from pathlib import Path
 from typing import Optional
 
-# Always resolve to project root regardless of working directory
-DB_PATH = os.environ.get(
-    "DB_PATH",
-    str(Path(__file__).parent.parent / "haskell_tutor.db")
-)
+# ── Smart Path Logic ───────────────────────────────────────────────────────
+
+def get_db_path():
+    # 1. Priority: Explicit Environment Variable
+    env_path = os.environ.get("DB_PATH")
+    if env_path:
+        return env_path
+
+    # 2. Railway Persistence: Use the /data volume if it exists
+    if os.path.exists("/data"):
+        return "/data/haskell_tutor.db"
+    
+    # 3. Railway Ephemeral Fallback: Use /tmp if no volume is found
+    if os.environ.get("RAILWAY_ENVIRONMENT"):
+        return "/tmp/haskell_tutor.db"
+        
+    # 4. Local Development Fallback: Project root
+    return str(Path(__file__).parent.parent / "haskell_tutor.db")
+
+DB_PATH = get_db_path()
+
+# CRITICAL: Ensure the directory exists before SQLite tries to open the file.
+# This prevents the 'unable to open database file' error on Railway.
+Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
 
 print(f"[DB] Using database at: {DB_PATH}", flush=True)
 
 
 def get_conn() -> sqlite3.Connection:
-    # isolation_level=None enables autocommit — no more silent rollbacks
+    # isolation_level=None enables autocommit
     conn = sqlite3.connect(DB_PATH, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
@@ -85,10 +96,6 @@ def init_db():
 # ── User auth ──────────────────────────────────────────────────────────────
 
 def register_user(username: str) -> Optional[dict]:
-    """
-    Register a new user. Returns {id, username, token} or None if taken.
-    Token is a 32-byte URL-safe random string used as a bearer token.
-    """
     token = secrets.token_urlsafe(32)
     print(f"[DB] Registering user: '{username}'", flush=True)
     try:
@@ -102,14 +109,12 @@ def register_user(username: str) -> Optional[dict]:
         return {"id": cur.lastrowid, "username": username.strip().lower(), "token": token}
     except sqlite3.IntegrityError:
         print(f"[DB] Username already taken: '{username}'", flush=True)
-        return None  # Username taken
+        return None
     except Exception as e:
         print(f"[DB] Unexpected error in register_user: {type(e).__name__}: {e}", flush=True)
         return None
 
-
 def get_user_by_token(token: str) -> Optional[dict]:
-    """Look up a user by their auth token. Returns user dict or None."""
     conn = get_conn()
     row = conn.execute(
         "SELECT id, username, token FROM users WHERE token = ?", (token,)
@@ -117,9 +122,7 @@ def get_user_by_token(token: str) -> Optional[dict]:
     conn.close()
     return dict(row) if row else None
 
-
 def get_user_by_username(username: str) -> Optional[dict]:
-    """Look up a user by username (for login — returns token)."""
     conn = get_conn()
     row = conn.execute(
         "SELECT id, username, token FROM users WHERE username = ?",
@@ -128,11 +131,9 @@ def get_user_by_username(username: str) -> Optional[dict]:
     conn.close()
     return dict(row) if row else None
 
-
 # ── Problem sessions ───────────────────────────────────────────────────────
 
 def save_code(user_id: int, problem_id: str, code: str):
-    """Save the student's current code for a problem."""
     conn = get_conn()
     conn.execute("""
         INSERT INTO problem_sessions (user_id, problem_id, code, updated_at)
@@ -143,11 +144,8 @@ def save_code(user_id: int, problem_id: str, code: str):
     """, (user_id, problem_id, code))
     conn.close()
 
-
 def mark_problem_solved(user_id: int, problem_id: str):
-    """Mark a problem as solved for this user."""
     conn = get_conn()
-    # First check if row exists
     row = conn.execute(
         "SELECT id FROM problem_sessions WHERE user_id = ? AND problem_id = ?",
         (user_id, problem_id)
@@ -165,7 +163,6 @@ def mark_problem_solved(user_id: int, problem_id: str):
     conn.close()
 
 def get_user_progress(user_id: int) -> dict:
-    """Get all problem progress for a user."""
     conn = get_conn()
     rows = conn.execute(
         "SELECT problem_id, code, solved, updated_at FROM problem_sessions WHERE user_id = ?",
@@ -173,14 +170,12 @@ def get_user_progress(user_id: int) -> dict:
     ).fetchall()
     conn.close()
     return {
-        "solved":        [r["problem_id"] for r in rows if r["solved"]],
-        "in_progress":   {r["problem_id"]: r["code"] for r in rows if not r["solved"] and r["code"]},
-        "total_solved":  sum(1 for r in rows if r["solved"]),
+        "solved": [r["problem_id"] for r in rows if r["solved"]],
+        "in_progress": {r["problem_id"]: r["code"] for r in rows if not r["solved"] and r["code"]},
+        "total_solved": sum(1 for r in rows if r["solved"]),
     }
 
-
 def get_saved_code(user_id: int, problem_id: str) -> str:
-    """Get the last saved code for a problem."""
     conn = get_conn()
     row = conn.execute(
         "SELECT code FROM problem_sessions WHERE user_id = ? AND problem_id = ?",
@@ -189,11 +184,9 @@ def get_saved_code(user_id: int, problem_id: str) -> str:
     conn.close()
     return row["code"] if row else ""
 
-
 # ── Conversations ──────────────────────────────────────────────────────────
 
 def save_message(user_id: int, problem_id: str, role: str, content: str, context: str = "error"):
-    """Save a conversation message (role = 'user' or 'assistant')."""
     conn = get_conn()
     conn.execute(
         "INSERT INTO conversations (user_id, problem_id, context, role, content) VALUES (?,?,?,?,?)",
@@ -201,9 +194,7 @@ def save_message(user_id: int, problem_id: str, role: str, content: str, context
     )
     conn.close()
 
-
 def get_conversation(user_id: int, problem_id: str, context: str = "error", limit: int = 20) -> list:
-    """Get recent conversation for a problem (most recent first then reversed)."""
     conn = get_conn()
     rows = conn.execute("""
         SELECT role, content FROM conversations
@@ -213,9 +204,7 @@ def get_conversation(user_id: int, problem_id: str, context: str = "error", limi
     conn.close()
     return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]
 
-
 def clear_conversation(user_id: int, problem_id: str, context: str = "error"):
-    """Clear conversation for a fresh start on a problem."""
     conn = get_conn()
     conn.execute(
         "DELETE FROM conversations WHERE user_id = ? AND problem_id = ? AND context = ?",
@@ -223,11 +212,9 @@ def clear_conversation(user_id: int, problem_id: str, context: str = "error"):
     )
     conn.close()
 
-
 # ── Experience tracking ────────────────────────────────────────────────────
 
 def increment_category(user_id: int, category: str):
-    """Increment encounter count for an error category."""
     conn = get_conn()
     conn.execute("""
         INSERT INTO experience (user_id, category, encounters)
@@ -237,9 +224,7 @@ def increment_category(user_id: int, category: str):
     """, (user_id, category))
     conn.close()
 
-
 def get_experience(user_id: int) -> dict:
-    """Get all experience levels for a user."""
     conn = get_conn()
     rows = conn.execute(
         "SELECT category, encounters FROM experience WHERE user_id = ?",
@@ -248,24 +233,22 @@ def get_experience(user_id: int) -> dict:
     conn.close()
     return {r["category"]: r["encounters"] for r in rows}
 
-
 # ── Stats ──────────────────────────────────────────────────────────────────
 
 def get_user_stats(user_id: int) -> dict:
-    """Get a summary of a user's activity."""
-    progress  = get_user_progress(user_id)
-    exp       = get_experience(user_id)
-    conn      = get_conn()
+    progress = get_user_progress(user_id)
+    exp = get_experience(user_id)
+    conn = get_conn()
     msg_count = conn.execute(
         "SELECT COUNT(*) as c FROM conversations WHERE user_id = ?", (user_id,)
     ).fetchone()["c"]
     conn.close()
     return {
-        "solved":        progress["total_solved"],
-        "in_progress":   len(progress["in_progress"]),
+        "solved": progress["total_solved"],
+        "in_progress": len(progress["in_progress"]),
         "messages_sent": msg_count,
-        "experience":    exp,
+        "experience": exp,
     }
 
-
+# Ensure tables are ready whenever this module is used
 init_db()
