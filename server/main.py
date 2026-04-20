@@ -89,18 +89,22 @@ def run_web() -> None:
     This function is registered as the `haskell-lsp-web` console script
     entry point in pyproject.toml.
     """
+
     _configure_logging(os.environ.get("LOG_LEVEL", "INFO"))
     logger = logging.getLogger(__name__)
 
-    port = int(os.environ.get("WEB_SERVER_PORT", 8765))
+    # FIX: Priority is Railway's PORT, then your custom WEB_SERVER_PORT, then 8765
+    port = int(os.environ.get("PORT", os.environ.get("WEB_SERVER_PORT", 8765)))
+    
     logger.info("Starting Haskell AI web server on port %d", port)
 
     import uvicorn
     from server.web_server import app
+    
+    # Ensure uvicorn uses the correct port variable
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
-
-
-# ── CLI ────────────────────────────────────────────────────────────────────
+    
+# ── CLI ───────────────────────────────────────────────────────────────────
 
 def main() -> None:
     parser = argparse.ArgumentParser(
