@@ -1,6 +1,6 @@
 """
 database.py — SQLite database for user persistence.
-Updated for seamless Railway deployment with persistent Volumes.
+Fixed for compatibility with older SQLite versions by using Python timestamps.
 """
 
 import sqlite3
@@ -14,33 +14,24 @@ from typing import Optional
 # ── Smart Path Logic ───────────────────────────────────────────────────────
 
 def get_db_path():
-    # 1. Priority: Explicit Environment Variable
     env_path = os.environ.get("DB_PATH")
     if env_path:
         return env_path
-
-    # 2. Railway Persistence: Use the /data volume if it exists
     if os.path.exists("/data"):
         return "/data/haskell_tutor.db"
-    
-    # 3. Railway Ephemeral Fallback: Use /tmp if no volume is found
     if os.environ.get("RAILWAY_ENVIRONMENT"):
         return "/tmp/haskell_tutor.db"
-        
-    # 4. Local Development Fallback: Project root
     return str(Path(__file__).parent.parent / "haskell_tutor.db")
 
 DB_PATH = get_db_path()
 
-# CRITICAL: Ensure the directory exists before SQLite tries to open the file.
-# This prevents the 'unable to open database file' error on Railway.
+# Ensure directory exists
 Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
 
 print(f"[DB] Using database at: {DB_PATH}", flush=True)
 
 
 def get_conn() -> sqlite3.Connection:
-    # isolation_level=None enables autocommit
     conn = sqlite3.connect(DB_PATH, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
@@ -56,7 +47,7 @@ def init_db():
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
             username   TEXT    NOT NULL UNIQUE,
             token      TEXT    NOT NULL UNIQUE,
-            created_at REAL    NOT NULL DEFAULT (unixepoch())
+            created_at REAL    NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS problem_sessions (
@@ -65,7 +56,7 @@ def init_db():
             problem_id TEXT    NOT NULL,
             code       TEXT    NOT NULL DEFAULT '',
             solved     INTEGER NOT NULL DEFAULT 0,
-            updated_at REAL    NOT NULL DEFAULT (unixepoch()),
+            updated_at REAL    NOT NULL,
             UNIQUE(user_id, problem_id)
         );
 
@@ -76,7 +67,7 @@ def init_db():
             context    TEXT    NOT NULL DEFAULT 'error',
             role       TEXT    NOT NULL,
             content    TEXT    NOT NULL,
-            timestamp  REAL    NOT NULL DEFAULT (unixepoch())
+            timestamp  REAL    NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS experience (
@@ -97,12 +88,13 @@ def init_db():
 
 def register_user(username: str) -> Optional[dict]:
     token = secrets.token_urlsafe(32)
+    now = time.time()
     print(f"[DB] Registering user: '{username}'", flush=True)
     try:
         conn = get_conn()
         cur = conn.execute(
-            "INSERT INTO users (username, token) VALUES (?, ?)",
-            (username.strip().lower(), token)
+            "INSERT INTO users (username, token, created_at) VALUES (?, ?, ?)",
+            (username.strip().lower(), token, now)
         )
         conn.close()
         print(f"[DB] Registered successfully, id={cur.lastrowid}", flush=True)
@@ -111,7 +103,7 @@ def register_user(username: str) -> Optional[dict]:
         print(f"[DB] Username already taken: '{username}'", flush=True)
         return None
     except Exception as e:
-        print(f"[DB] Unexpected error in register_user: {type(e).__name__}: {e}", flush=True)
+        print(f"[DB] Unexpected error in register_user: {e}", flush=True)
         return None
 
 def get_user_by_token(token: str) -> Optional[dict]:
@@ -131,20 +123,23 @@ def get_user_by_username(username: str) -> Optional[dict]:
     conn.close()
     return dict(row) if row else None
 
+
 # ── Problem sessions ───────────────────────────────────────────────────────
 
 def save_code(user_id: int, problem_id: str, code: str):
+    now = time.time()
     conn = get_conn()
     conn.execute("""
         INSERT INTO problem_sessions (user_id, problem_id, code, updated_at)
-        VALUES (?, ?, ?, unixepoch())
+        VALUES (?, ?, ?, ?)
         ON CONFLICT(user_id, problem_id) DO UPDATE SET
             code = excluded.code,
             updated_at = excluded.updated_at
-    """, (user_id, problem_id, code))
+    """, (user_id, problem_id, code, now))
     conn.close()
 
 def mark_problem_solved(user_id: int, problem_id: str):
+    now = time.time()
     conn = get_conn()
     row = conn.execute(
         "SELECT id FROM problem_sessions WHERE user_id = ? AND problem_id = ?",
@@ -152,13 +147,13 @@ def mark_problem_solved(user_id: int, problem_id: str):
     ).fetchone()
     if row:
         conn.execute(
-            "UPDATE problem_sessions SET solved = 1, updated_at = unixepoch() WHERE user_id = ? AND problem_id = ?",
-            (user_id, problem_id)
+            "UPDATE problem_sessions SET solved = 1, updated_at = ? WHERE user_id = ? AND problem_id = ?",
+            (now, user_id, problem_id)
         )
     else:
         conn.execute(
-            "INSERT INTO problem_sessions (user_id, problem_id, solved, updated_at) VALUES (?, ?, 1, unixepoch())",
-            (user_id, problem_id)
+            "INSERT INTO problem_sessions (user_id, problem_id, solved, updated_at) VALUES (?, ?, 1, ?)",
+            (user_id, problem_id, now)
         )
     conn.close()
 
@@ -184,13 +179,15 @@ def get_saved_code(user_id: int, problem_id: str) -> str:
     conn.close()
     return row["code"] if row else ""
 
+
 # ── Conversations ──────────────────────────────────────────────────────────
 
 def save_message(user_id: int, problem_id: str, role: str, content: str, context: str = "error"):
+    now = time.time()
     conn = get_conn()
     conn.execute(
-        "INSERT INTO conversations (user_id, problem_id, context, role, content) VALUES (?,?,?,?,?)",
-        (user_id, problem_id, context, role, content)
+        "INSERT INTO conversations (user_id, problem_id, context, role, content, timestamp) VALUES (?,?,?,?,?,?)",
+        (user_id, problem_id, context, role, content, now)
     )
     conn.close()
 
@@ -211,6 +208,7 @@ def clear_conversation(user_id: int, problem_id: str, context: str = "error"):
         (user_id, problem_id, context)
     )
     conn.close()
+
 
 # ── Experience tracking ────────────────────────────────────────────────────
 
@@ -233,6 +231,7 @@ def get_experience(user_id: int) -> dict:
     conn.close()
     return {r["category"]: r["encounters"] for r in rows}
 
+
 # ── Stats ──────────────────────────────────────────────────────────────────
 
 def get_user_stats(user_id: int) -> dict:
@@ -250,5 +249,5 @@ def get_user_stats(user_id: int) -> dict:
         "experience": exp,
     }
 
-# Ensure tables are ready whenever this module is used
+# Run setup
 init_db()
