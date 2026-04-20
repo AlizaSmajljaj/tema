@@ -71,7 +71,8 @@ class GHCDiagnostic:
     error_code: Optional[str] = None      # e.g. "-Wunused-imports", "GHC-12345"
     context_lines: list[str] = field(default_factory=list)  # source lines near error
     related: list["GHCDiagnostic"] = field(default_factory=list)  # sub-notes
-
+    raw_ghc_output: str = ""
+    
     # Set by AI engine after processing
     ai_explanation: Optional[str] = None
     ai_hint: Optional[str] = None

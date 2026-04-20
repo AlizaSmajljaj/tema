@@ -1,0 +1,271 @@
+"""
+database.py — SQLite database for user persistence.
+
+Stores:
+  - Users (id, username, token, created_at)
+  - Sessions (user_id, problem_id, code, solved, timestamp)
+  - Conversations (user_id, problem_id, role, content, timestamp)
+  - Progress (user_id, category, encounter_count)
+
+Zero external dependencies beyond Python stdlib.
+Single file database — easy to backup, easy to deploy.
+"""
+
+import sqlite3
+import secrets
+import time
+import json
+import os
+from pathlib import Path
+from typing import Optional
+
+# Always resolve to project root regardless of working directory
+DB_PATH = os.environ.get(
+    "DB_PATH",
+    str(Path(__file__).parent.parent / "haskell_tutor.db")
+)
+
+print(f"[DB] Using database at: {DB_PATH}", flush=True)
+
+
+def get_conn() -> sqlite3.Connection:
+    # isolation_level=None enables autocommit — no more silent rollbacks
+    conn = sqlite3.connect(DB_PATH, isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+def init_db():
+    """Create tables if they don't exist."""
+    with get_conn() as conn:
+        conn.executescript("""
+        CREATE TABLE IF NOT EXISTS users (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            username   TEXT    NOT NULL UNIQUE,
+            token      TEXT    NOT NULL UNIQUE,
+            created_at REAL    NOT NULL DEFAULT (unixepoch())
+        );
+
+        CREATE TABLE IF NOT EXISTS problem_sessions (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id    INTEGER NOT NULL REFERENCES users(id),
+            problem_id TEXT    NOT NULL,
+            code       TEXT    NOT NULL DEFAULT '',
+            solved     INTEGER NOT NULL DEFAULT 0,
+            updated_at REAL    NOT NULL DEFAULT (unixepoch()),
+            UNIQUE(user_id, problem_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS conversations (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id    INTEGER NOT NULL REFERENCES users(id),
+            problem_id TEXT    NOT NULL,
+            context    TEXT    NOT NULL DEFAULT 'error',
+            role       TEXT    NOT NULL,
+            content    TEXT    NOT NULL,
+            timestamp  REAL    NOT NULL DEFAULT (unixepoch())
+        );
+
+        CREATE TABLE IF NOT EXISTS experience (
+            user_id   INTEGER NOT NULL REFERENCES users(id),
+            category  TEXT    NOT NULL,
+            encounters INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(user_id, category)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_sessions_user    ON problem_sessions(user_id);
+        CREATE INDEX IF NOT EXISTS idx_convos_user_prob ON conversations(user_id, problem_id);
+        CREATE INDEX IF NOT EXISTS idx_experience_user  ON experience(user_id);
+        """)
+    print(f"[DB] Tables initialised.", flush=True)
+
+
+# ── User auth ──────────────────────────────────────────────────────────────
+
+def register_user(username: str) -> Optional[dict]:
+    """
+    Register a new user. Returns {id, username, token} or None if taken.
+    Token is a 32-byte URL-safe random string used as a bearer token.
+    """
+    token = secrets.token_urlsafe(32)
+    print(f"[DB] Registering user: '{username}'", flush=True)
+    try:
+        conn = get_conn()
+        cur = conn.execute(
+            "INSERT INTO users (username, token) VALUES (?, ?)",
+            (username.strip().lower(), token)
+        )
+        conn.close()
+        print(f"[DB] Registered successfully, id={cur.lastrowid}", flush=True)
+        return {"id": cur.lastrowid, "username": username.strip().lower(), "token": token}
+    except sqlite3.IntegrityError:
+        print(f"[DB] Username already taken: '{username}'", flush=True)
+        return None  # Username taken
+    except Exception as e:
+        print(f"[DB] Unexpected error in register_user: {type(e).__name__}: {e}", flush=True)
+        return None
+
+
+def get_user_by_token(token: str) -> Optional[dict]:
+    """Look up a user by their auth token. Returns user dict or None."""
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT id, username, token FROM users WHERE token = ?", (token,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_user_by_username(username: str) -> Optional[dict]:
+    """Look up a user by username (for login — returns token)."""
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT id, username, token FROM users WHERE username = ?",
+        (username.strip().lower(),)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+# ── Problem sessions ───────────────────────────────────────────────────────
+
+def save_code(user_id: int, problem_id: str, code: str):
+    """Save the student's current code for a problem."""
+    conn = get_conn()
+    conn.execute("""
+        INSERT INTO problem_sessions (user_id, problem_id, code, updated_at)
+        VALUES (?, ?, ?, unixepoch())
+        ON CONFLICT(user_id, problem_id) DO UPDATE SET
+            code = excluded.code,
+            updated_at = excluded.updated_at
+    """, (user_id, problem_id, code))
+    conn.close()
+
+
+def mark_problem_solved(user_id: int, problem_id: str):
+    """Mark a problem as solved for this user."""
+    conn = get_conn()
+    # First check if row exists
+    row = conn.execute(
+        "SELECT id FROM problem_sessions WHERE user_id = ? AND problem_id = ?",
+        (user_id, problem_id)
+    ).fetchone()
+    if row:
+        conn.execute(
+            "UPDATE problem_sessions SET solved = 1, updated_at = unixepoch() WHERE user_id = ? AND problem_id = ?",
+            (user_id, problem_id)
+        )
+    else:
+        conn.execute(
+            "INSERT INTO problem_sessions (user_id, problem_id, solved, updated_at) VALUES (?, ?, 1, unixepoch())",
+            (user_id, problem_id)
+        )
+    conn.close()
+
+def get_user_progress(user_id: int) -> dict:
+    """Get all problem progress for a user."""
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT problem_id, code, solved, updated_at FROM problem_sessions WHERE user_id = ?",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    return {
+        "solved":        [r["problem_id"] for r in rows if r["solved"]],
+        "in_progress":   {r["problem_id"]: r["code"] for r in rows if not r["solved"] and r["code"]},
+        "total_solved":  sum(1 for r in rows if r["solved"]),
+    }
+
+
+def get_saved_code(user_id: int, problem_id: str) -> str:
+    """Get the last saved code for a problem."""
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT code FROM problem_sessions WHERE user_id = ? AND problem_id = ?",
+        (user_id, problem_id)
+    ).fetchone()
+    conn.close()
+    return row["code"] if row else ""
+
+
+# ── Conversations ──────────────────────────────────────────────────────────
+
+def save_message(user_id: int, problem_id: str, role: str, content: str, context: str = "error"):
+    """Save a conversation message (role = 'user' or 'assistant')."""
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO conversations (user_id, problem_id, context, role, content) VALUES (?,?,?,?,?)",
+        (user_id, problem_id, context, role, content)
+    )
+    conn.close()
+
+
+def get_conversation(user_id: int, problem_id: str, context: str = "error", limit: int = 20) -> list:
+    """Get recent conversation for a problem (most recent first then reversed)."""
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT role, content FROM conversations
+        WHERE user_id = ? AND problem_id = ? AND context = ?
+        ORDER BY timestamp DESC LIMIT ?
+    """, (user_id, problem_id, context, limit)).fetchall()
+    conn.close()
+    return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]
+
+
+def clear_conversation(user_id: int, problem_id: str, context: str = "error"):
+    """Clear conversation for a fresh start on a problem."""
+    conn = get_conn()
+    conn.execute(
+        "DELETE FROM conversations WHERE user_id = ? AND problem_id = ? AND context = ?",
+        (user_id, problem_id, context)
+    )
+    conn.close()
+
+
+# ── Experience tracking ────────────────────────────────────────────────────
+
+def increment_category(user_id: int, category: str):
+    """Increment encounter count for an error category."""
+    conn = get_conn()
+    conn.execute("""
+        INSERT INTO experience (user_id, category, encounters)
+        VALUES (?, ?, 1)
+        ON CONFLICT(user_id, category) DO UPDATE SET
+            encounters = encounters + 1
+    """, (user_id, category))
+    conn.close()
+
+
+def get_experience(user_id: int) -> dict:
+    """Get all experience levels for a user."""
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT category, encounters FROM experience WHERE user_id = ?",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    return {r["category"]: r["encounters"] for r in rows}
+
+
+# ── Stats ──────────────────────────────────────────────────────────────────
+
+def get_user_stats(user_id: int) -> dict:
+    """Get a summary of a user's activity."""
+    progress  = get_user_progress(user_id)
+    exp       = get_experience(user_id)
+    conn      = get_conn()
+    msg_count = conn.execute(
+        "SELECT COUNT(*) as c FROM conversations WHERE user_id = ?", (user_id,)
+    ).fetchone()["c"]
+    conn.close()
+    return {
+        "solved":        progress["total_solved"],
+        "in_progress":   len(progress["in_progress"]),
+        "messages_sent": msg_count,
+        "experience":    exp,
+    }
+
+
+init_db()
