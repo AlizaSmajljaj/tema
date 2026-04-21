@@ -574,7 +574,8 @@ class TestGracefulDegradation:
     async def test_engine_returns_original_when_no_api_key(self, make_diag):
         """If GROQ_API_KEY is absent, enrich() returns the original diagnostic."""
         diag = make_diag()
-        engine = AIFeedbackEngine(api_key="", context_manager=ContextManager())        engine._client = None   # No API client
+        engine = AIFeedbackEngine(api_key="", context_manager=ContextManager())        
+        engine._client = None   # No API client
         engine._context = ContextManager()
 
         result = await engine.enrich(diag, "main = True + 1\n", URI)

@@ -42,17 +42,6 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Haskell AI Tutor")
 
-# Allow all origins — needed for Railway deployments where the domain is dynamic.
-# Restrict to a specific origin in production if desired.
-from fastapi.middleware.cors import CORSMiddleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 _bridge  = GHCBridge()
 _context = ContextManager()
 _engine  = AIFeedbackEngine(context_manager=_context)
@@ -104,8 +93,7 @@ async def test_everything():
 
     # Check Ollama
     try:
-        ollama_base = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-        r = req_lib.get(f"{ollama_base}/api/tags", timeout=2)
+        r = req_lib.get("http://localhost:11434/api/tags", timeout=2)
         results["ollama_running"]   = r.status_code == 200
         models = [m["name"] for m in r.json().get("models", [])]
         results["ollama_models"]    = models
@@ -323,32 +311,55 @@ async def chat_proxy(request: Request, authorization: str = Header(default="")):
 @app.post("/api/run")
 async def run_code(request: Request, authorization: str = Header(default="")):
     """Compile and run Haskell code, return stdout."""
+    import shutil as _shutil
     body   = await request.json()
     source = body.get("source", "")
     if not source.strip():
         return JSONResponse({"output": "", "error": "Empty source"})
+
+    # Resolve GHC the same way the bridge does — respects GHC_PATH env var
+    ghc_path = os.environ.get("GHC_PATH") or _shutil.which("ghc")
+    if not ghc_path:
+        return JSONResponse({"output": "", "error": "GHC not found. Install GHC or set GHC_PATH in .env"})
+
+    tmpdir = tempfile.mkdtemp(prefix="haskell-run-")
     try:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            src_path = os.path.join(tmpdir, "Main.hs")
-            exe_path = os.path.join(tmpdir, "Main")
-            with open(src_path, "w", encoding="utf-8") as f:
-                f.write(source)
-            compile_result = subprocess.run(
-                ["ghc", "-o", exe_path, src_path],
-                capture_output=True, text=True, timeout=30, cwd=tmpdir,
-            )
-            if compile_result.returncode != 0:
-                return JSONResponse({"output": "", "error": "Fix compiler errors first."})
-            run_result = subprocess.run(
-                [exe_path], capture_output=True, text=True, timeout=10, cwd=tmpdir,
-            )
-            return JSONResponse({"output": run_result.stdout, "error": run_result.stderr if run_result.returncode != 0 else ""})
+        src_path = os.path.join(tmpdir, "Main.hs")
+        exe_path = os.path.join(tmpdir, "Main")
+        with open(src_path, "w", encoding="utf-8") as f:
+            f.write(source)
+
+        # Full compilation (with code generation, unlike -fno-code used for diagnostics)
+        compile_result = subprocess.run(
+            [ghc_path, "-o", exe_path, src_path],
+            capture_output=True, text=True, timeout=30, cwd=tmpdir,
+        )
+        if compile_result.returncode != 0:
+            # Return the actual GHC error so the student can see what's wrong
+            err_text = compile_result.stderr or compile_result.stdout or "Compilation failed."
+            return JSONResponse({"output": "", "error": err_text.strip()})
+
+        # Execute the binary
+        run_result = subprocess.run(
+            [exe_path],
+            capture_output=True, text=True, timeout=10, cwd=tmpdir,
+        )
+        output = run_result.stdout
+        # Combine stdout + stderr so runtime errors (like pattern match failure) are visible
+        if run_result.returncode != 0:
+            error_out = run_result.stderr.strip()
+            return JSONResponse({"output": output, "error": error_out})
+        return JSONResponse({"output": output, "error": ""})
+
     except subprocess.TimeoutExpired:
-        return JSONResponse({"output": "", "error": "Timed out (10s limit)."})
+        return JSONResponse({"output": "", "error": "Timed out after 10 seconds — check for infinite loops."})
     except FileNotFoundError:
-        return JSONResponse({"output": "", "error": "GHC not found."})
+        return JSONResponse({"output": "", "error": f"Could not execute: {exe_path}. Compilation may have failed silently."})
     except Exception as exc:
         return JSONResponse({"output": "", "error": str(exc)})
+    finally:
+        # Clean up after execution (not before, unlike TemporaryDirectory context manager)
+        _shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 # ── Diagnostic conversion ──────────────────────────────────────────────────

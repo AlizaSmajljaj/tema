@@ -366,7 +366,7 @@ class TestWebServerEndpoints:
 
         # Mark first problem solved
         result = mark_solved("session1", "rec1")
-        assert "rec1" in 
+        assert "rec1" in result
         # Mark second problem solved in same session
         mark_solved("session1", "rec2")
         assert len(progress["session1"]) == 2
@@ -624,7 +624,8 @@ class TestRunEndpoint:
     def test_output_capture_format(self):
         """Run result must have output and error fields."""
         result = {"output": "42\n", "error": ""}
-        assert "output" in         assert "error"  in result
+        assert "output" in  result
+        assert "error"  in result
 
     def test_timeout_error_message(self):
         """Timeout should return clear error message."""

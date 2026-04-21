@@ -963,17 +963,28 @@ function runCode() {
     var text  = document.getElementById('output-text');
     panel.style.display = 'flex';
     if (editor) setTimeout(function(){ editor.layout(); }, 20);
-    if (data.error) {
+    if (data.error && !data.output) {
+      // Compilation failed or runtime crash with no output
       text.style.color = 'var(--red)';
       text.textContent = data.error;
-    } else {
+    } else if (data.output) {
+      // Show output; append runtime error beneath if any
       text.style.color = 'var(--txt)';
-      text.textContent = data.output || '(no output)';
+      text.textContent = data.output + (data.error ? '\n\n[stderr]\n' + data.error : '');
+    } else {
+      // Compiled and ran but nothing was printed
+      text.style.color = 'var(--muted)';
+      text.textContent = '(program ran successfully but printed nothing — does main call print?)';
     }
     btn.disabled = false;
     btn.textContent = '►► Run';
   })
-  .catch(function() {
+  .catch(function(err) {
+    var panel = document.getElementById('output-panel');
+    var text  = document.getElementById('output-text');
+    panel.style.display = 'flex';
+    text.style.color = 'var(--red)';
+    text.textContent = 'Could not reach server. Is it running?';
     btn.disabled = false;
     btn.textContent = '►► Run';
   });
