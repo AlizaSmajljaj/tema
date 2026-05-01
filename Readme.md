@@ -27,7 +27,7 @@ You type Haskell
       ↓
   Parser → GHCDiagnostic objects
       ↓
-  Claude API → adaptive explanation + hint
+  Groq API → adaptive explanation + hint
       ↓
   LSP Diagnostic back to editor  ← hover to see AI feedback
 ```
@@ -41,7 +41,7 @@ You type Haskell
 | Python | ≥ 3.11 | |
 | GHC | ≥ 8.10 | Any recent version works; 9.4+ enables JSON diagnostics |
 | Node.js | ≥ 18 | Only needed for the VS Code extension |
-| Anthropic API key | — | [Get one here](https://console.anthropic.com/) |
+| AI API key | — | [Get one here](https://console.groqai.com/) |
 
 **Installing GHC** — the easiest way is via [GHCup](https://www.haskell.org/ghcup/):
 ```bash
@@ -136,7 +136,7 @@ ai-haskell-lsp/
 │   │   └── bridge.py          # Invokes GHC asynchronously, caches results
 │   │
 │   ├── ai/                    # AI feedback engine
-│   │   ├── engine.py          # Claude API calls + prompt construction
+│   │   ├── engine.py          # API calls + prompt construction
 │   │   ├── prompts.py         # Prompt templates per error category
 │   │   └── context.py         # Tracks user error history, adapts level
 │   │
@@ -155,6 +155,9 @@ ai-haskell-lsp/
 │   ├── test_ghc_parser.py     # GHC output parser unit tests
 │   ├── test_ai_engine.py      # AI prompt + response tests
 │   ├── test_lsp_integration.py
+|   |   test_database.py
+|   |   test_comprehensive.py
+|   |   test_web_server.py
 │   └── fixtures/
 │
 ├── .env.example               # Environment variable template
@@ -191,29 +194,10 @@ All configuration is via environment variables (set in `.env`):
 |---|---|---|
 | `ANTHROPIC_API_KEY` | — | **Required.** Your Anthropic API key |
 | `GHC_PATH` | auto-detected | Path to GHC executable |
-| `CLAUDE_MODEL` | `claude-haiku-4-5-20251001` | Claude model for feedback |
+| `GROQ_MODEL` | `llama3.1` | AI model for feedback |
 | `WEB_SERVER_PORT` | `8765` | WebSocket server port |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
 
----
-
-## Architecture Notes
-
-**Why Python?** Python offers first-class async support, the official Anthropic SDK,
-and the `pygls` library which provides a complete LSP server implementation out of
-the box. This lets the project focus on the novel contributions — the GHC bridge,
-the parser, and the AI feedback engine — rather than reimplementing LSP plumbing.
-
-**Why GHC `-fno-code`?** This flag tells GHC to perform full lexical, syntactic, and
-semantic analysis (including type inference) without generating any object code or
-interface files. This makes type-checking roughly 3–5× faster than a full compilation,
-which is important for low-latency feedback as the user types.
-
-**Why Claude?** Claude's API is well-suited to this task because it supports a system
-prompt that can be used to establish a consistent pedagogical persona, and because
-Haiku provides a good balance of speed and quality for the interactive feedback use
-case. The model is never asked to fix code — only to explain errors and offer hints,
-which keeps responses focused and avoids over-assistance.
 
 ---
 
