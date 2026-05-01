@@ -15,7 +15,6 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgba(232,121,168,.06) 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,rgba(192,84,252,.04) 0%,transparent 50%);color:var(--txt);font-family:var(--sans);font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
-/* ── Top bar ── */
 #topbar{display:flex;align-items:center;gap:12px;padding:0 16px;height:48px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;box-shadow:0 1px 12px rgba(232,121,168,.07)}
 #logo{font-family:Georgia,serif;font-size:17px;background:linear-gradient(90deg,var(--accent),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.5px;font-weight:700}
 #logo span{font-size:11px;color:var(--muted);margin-left:4px;font-family:var(--sans);-webkit-text-fill-color:var(--muted)}
@@ -32,10 +31,8 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
 #runcode-btn:disabled{opacity:.4;cursor:not-allowed}
 #runcode-btn:hover:not(:disabled){background:rgba(232,121,168,.1)}
 
-/* ── Layout ── */
 #main{display:flex;flex:1;overflow:hidden}
 
-/* ── Left sidebar — problem browser ── */
 #sidebar{width:240px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--surface)}
 #sidebar-header{padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
 #sidebar-header h2{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
@@ -56,20 +53,16 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
 #sidebar::-webkit-scrollbar,#problem-list::-webkit-scrollbar{width:3px}
 #sidebar::-webkit-scrollbar-thumb,#problem-list::-webkit-scrollbar-thumb{background:var(--border)}
 
-/* ── Editor area ── */
 #editor-wrap{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;overflow:hidden}
 #editor{flex:1;min-height:0}
 
-/* ── Problem description bar ── */
 #prob-desc{padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);flex-shrink:0;max-height:80px;overflow-y:auto;line-height:1.6;white-space:pre-wrap}
 #prob-desc.hidden{display:none}
 
-/* ── Stuck button ── */
 #stuck-btn{position:absolute;bottom:160px;right:16px;padding:8px 16px;border-radius:20px;background:var(--surface2);border:1px solid var(--yellow);color:var(--yellow);font-size:11px;font-weight:700;cursor:pointer;opacity:0;transition:opacity .5s;pointer-events:none;z-index:10}
 #stuck-btn.visible{opacity:1;pointer-events:all}
 #stuck-btn:hover{background:rgba(251,191,36,.1)}
 
-/* ── Right panel ── */
 #panel{width:380px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;border-left:1px solid var(--border)}
 #panel-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
 .ptab{flex:1;padding:9px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
@@ -78,7 +71,6 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
 .panel-view{display:none;flex:1;flex-direction:column;overflow:hidden}
 .panel-view.on{display:flex}
 
-/* ── Errors tab ── */
 #pn-header{display:flex;align-items:center;gap:8px;padding:8px 12px;flex-shrink:0}
 #pn-title{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;flex:1}
 #pn-counts{font-size:11px;font-weight:700}
@@ -89,7 +81,6 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
 #dlist::-webkit-scrollbar{width:3px}
 #dlist::-webkit-scrollbar-thumb{background:var(--border)}
 
-/* Diagnostic card */
 .dc{border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface);overflow:hidden;transition:border-color .15s}
 .dc.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(232,121,168,.2)}
 .dc-head{padding:8px 10px;display:flex;align-items:flex-start;gap:7px;cursor:pointer}
@@ -105,7 +96,6 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
 .ai-txt{font-size:12px;font-weight:300;color:var(--txt);line-height:1.6}
 .ai-txt.q-txt{font-size:12px;font-weight:500;color:var(--pink-soft);font-style:italic}
 
-/* Reply box */
 .reply-wrap{border-top:1px solid var(--border);padding:8px 10px;background:rgba(232,121,168,.03)}
 .reply-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:5px}
 .reply-row{display:flex;gap:5px}
@@ -114,7 +104,6 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
 .reply-input::placeholder{color:var(--muted)}
 .reply-btn{padding:6px 12px;border-radius:5px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;cursor:pointer;font-size:11px;font-weight:700;align-self:flex-end}
 
-/* Conversation */
 .convo{display:flex;flex-direction:column;gap:5px;padding:6px 10px;border-top:1px solid var(--border);background:rgba(0,0,0,.1)}
 .convo-msg{display:flex;gap:7px}
 .convo-who{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;flex-shrink:0;width:32px;margin-top:2px}
@@ -128,7 +117,6 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
 .thinking span:nth-child(3){animation-delay:.3s}
 @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
 
-/* ── Think tab ── */
 #think-inner{padding:10px;display:flex;flex-direction:column;gap:8px;flex:1;overflow:hidden}
 #think-inner h3{font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.1em}
 #think-inner p{font-size:11px;color:var(--muted);line-height:1.6}
@@ -150,18 +138,15 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
 #think-input:focus{border-color:var(--accent)}
 #think-send{padding:7px 12px;border-radius:5px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;cursor:pointer;font-size:11px;font-weight:700}
 
-/* ── Status bar ── */
 #statusbar{display:flex;align-items:center;gap:14px;padding:0 14px;height:22px;font-size:10px;color:var(--muted);background:var(--surface);border-top:1px solid var(--border);flex-shrink:0}
 #sb-e{color:var(--red);font-weight:700}
 #sb-w{color:var(--yellow);font-weight:700}
 .sb-sep{color:var(--border)}
 #sb-prob{flex:1;text-align:center;color:var(--muted)}
 
-/* Decorations */
 .err-highlight-inline{background:rgba(248,113,113,.2);border-bottom:2px solid #f87171;border-radius:2px}
 .warn-highlight-inline{background:rgba(251,191,36,.2);border-bottom:2px solid #fbbf24;border-radius:2px}
 
-/* Empty state */
 .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:6px;color:var(--muted);padding:16px;text-align:center}
 .empty-state .big{font-size:24px}
 .empty-state .title{font-size:12px;font-weight:600;color:var(--txt)}
@@ -171,7 +156,6 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
 .solved-banner .s-sub{font-size:11px;color:var(--muted)}
 .solved-banner button{align-self:flex-start;padding:4px 12px;border-radius:4px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;cursor:pointer;font-size:11px;font-weight:700;margin-top:2px}
 
-/* ── Auth modal ── */
 #auth-modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}
 #auth-modal.hidden{display:none}
 #auth-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px 36px;width:360px;display:flex;flex-direction:column;gap:16px;box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 1px rgba(232,121,168,.1)}
@@ -186,7 +170,6 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
 #auth-error{font-size:11px;color:var(--red);text-align:center;min-height:16px}
 #auth-skip{font-size:10px;color:var(--muted);text-align:center;cursor:pointer;text-decoration:underline;opacity:.7}
 #auth-skip:hover{opacity:1}
-/* User badge in topbar */
 #user-badge{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--txt);font-weight:600;padding:3px 10px 3px 5px;border:1px solid var(--border);border-radius:20px;cursor:pointer;transition:border-color .15s,background .15s}
 #user-badge:hover{border-color:var(--accent);background:rgba(232,121,168,.07)}
 #user-avatar{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0;text-transform:uppercase}
@@ -195,7 +178,6 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
 </head>
 <body>
 
-<!-- Top bar -->
 <div id="topbar">
   <span id="logo">&#955; <span>Haskell Thinking Gym</span></span>
   <div id="topbar-right">
@@ -208,10 +190,8 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
   </div>
 </div>
 
-<!-- Main -->
 <div id="main">
 
-  <!-- Left sidebar: problem browser -->
   <div id="sidebar">
     <div id="sidebar-header">
       <h2>Problems</h2>
@@ -231,7 +211,6 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
     <div id="problem-list"></div>
   </div>
 
-  <!-- Editor -->
   <div id="editor-wrap">
     <div id="prob-desc" class="hidden"></div>
     <div id="editor"></div>
@@ -245,14 +224,12 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
     </div>
   </div>
 
-  <!-- Right panel -->
   <div id="panel">
     <div id="panel-tabs">
       <div class="ptab on" id="tab-errors" onclick="switchTab('errors')">&#9888; Errors</div>
       <div class="ptab"    id="tab-think"  onclick="switchTab('think')">&#129504; Think</div>
     </div>
 
-    <!-- Errors view -->
     <div class="panel-view on" id="view-errors">
       <div id="pn-header">
         <span id="pn-title">Diagnostics</span>
@@ -264,7 +241,6 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
       <div id="dlist"></div>
     </div>
 
-    <!-- Think view -->
     <div class="panel-view" id="view-think">
       <div id="think-inner">
         <h3>Problem Decoder</h3>
@@ -281,7 +257,6 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
   </div>
 </div>
 
-<!-- Status bar -->
 <div id="statusbar">
   Errors <span id="sb-e">0</span>
   <span class="sb-sep">|</span>
@@ -294,7 +269,6 @@ body{background:var(--bg);background-image:radial-gradient(ellipse at 20% 0%,rgb
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
 <script>
 
-// ── Problem bank ───────────────────────────────────────────────────────────
 var PROBLEMS = [];
 
 PROBLEMS.push({id:"rec1",topic:"Recursion",title:"Sum a list",difficulty:1,
@@ -422,8 +396,6 @@ description:"Given (name,age,salary):\n1. medianSalary\n2. totalWithRaise (10% f
 stub:["module Main where","import Data.List (sort)","","type Employee = (String, Int, Int)","","medianSalary :: [Employee] -> Double","medianSalary emps = undefined","","totalWithRaise :: [Employee] -> Double","totalWithRaise emps = undefined","","noRaise :: [Employee] -> [String]","noRaise emps = undefined","","youngHighEarners :: [Employee] -> [String]","youngHighEarners emps = undefined","","main :: IO ()","main = do","  let emps = [(\"John\",23,200),(\"Bob\",60,700),(\"Anna\",38,427),","              (\"Joe\",36,289),(\"Doe\",22,384),(\"Marie\",55,572),(\"Lucy\",37,400)]","  print (medianSalary emps)","  print (totalWithRaise emps)","  print (noRaise emps)","  print (youngHighEarners emps)"].join('\n'),
 hint:"Break into small helpers. Each function does one thing. Sort salaries for median."});
 
-// ── App state ──────────────────────────────────────────────────────────────
-// Auto-detect WebSocket URL — works locally (ws://) and on Railway/HTTPS (wss://)
 var WS_PROTO = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 var WS_URL   = WS_PROTO + '//' + window.location.host + '/ws';
 var DELAY  = 700;
@@ -445,7 +417,6 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ── Problem browser ────────────────────────────────────────────────────────
 function filterProblems() {
   var topic = document.getElementById('topic-filter').value;
   var list  = document.getElementById('problem-list');
@@ -472,7 +443,6 @@ function filterProblems() {
 
 function loadProblem(p) {
   currentProblem = p;
-  // Show description
   var desc = document.getElementById('prob-desc');
   desc.textContent = p.description;
   desc.classList.remove('hidden');
@@ -480,7 +450,6 @@ function loadProblem(p) {
   filterProblems();
   resetStuckTimer();
 
-  // Load saved code if logged in — otherwise use stub
   if (authToken) {
     fetch('/api/load/'+p.id, {headers:{'Authorization':'Bearer '+authToken}})
     .then(function(r){return r.json();})
@@ -507,7 +476,6 @@ function loadProblem(p) {
   }
 }
 
-// ── Stuck button ───────────────────────────────────────────────────────────
 function resetStuckTimer() {
   clearTimeout(stuckTimer);
   document.getElementById('stuck-btn').classList.remove('visible');
@@ -517,7 +485,7 @@ function resetStuckTimer() {
 function checkStuck() {
   if (allDiags.filter(function(d){return d.severity==='error';}).length > 0) {
     errorPersistTime += 1;
-    if (errorPersistTime >= 90) { // ~90 seconds of errors
+    if (errorPersistTime >= 90) { 
       document.getElementById('stuck-btn').classList.add('visible');
     }
   } else {
@@ -556,7 +524,6 @@ function askStuck() {
     .catch(function() { te.remove(); appendThinkMsg('ai', "I could not reach the AI right now."); });
 }
 
-// ── Tab switching ──────────────────────────────────────────────────────────
 function switchTab(tab) {
   document.querySelectorAll('.ptab').forEach(function(t){t.classList.remove('on');});
   document.querySelectorAll('.panel-view').forEach(function(v){v.classList.remove('on');});
@@ -564,7 +531,6 @@ function switchTab(tab) {
   document.getElementById('view-'+tab).classList.add('on');
 }
 
-// ── Monaco setup ───────────────────────────────────────────────────────────
 require.config({paths:{vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'}});
 require(['vs/editor/editor.main'], function() {
   monaco.editor.defineTheme('hd', {
@@ -604,7 +570,6 @@ require(['vs/editor/editor.main'], function() {
     scrollbar:{verticalScrollbarSize:4, horizontalScrollbarSize:4}
   });
 
-  // Auto-relayout Monaco when container resizes (fixes output panel)
   new ResizeObserver(function(){ editor.layout(); }).observe(document.getElementById('editor'));
 
   editor.onDidChangeModelContent(function() {
@@ -622,14 +587,12 @@ require(['vs/editor/editor.main'], function() {
     });
   });
 
-  // Stuck timer — check every second
   setInterval(checkStuck, 1000);
 
   filterProblems();
   connect();
 });
 
-// ── WebSocket ──────────────────────────────────────────────────────────────
 function setB(txt, cls) {
   var b = document.getElementById('badge');
   b.className = cls || '';
@@ -655,7 +618,6 @@ function go() {
   ws.send(JSON.stringify({type:'compile', source:editor.getValue(), uri:'web://editor'}));
 }
 
-// ── Render diagnostics ─────────────────────────────────────────────────────
 function render(diags) {
   allDiags = diags;
   activeCard = null;
@@ -672,7 +634,6 @@ function render(diags) {
   if (warns) parts.push('<span class="cw">'+warns+'W</span>');
   pc.innerHTML = parts.length ? parts.join('') : '<span class="co">&#10003; OK</span>';
 
-  // If no errors and we have a current problem, mark it solved
   if (errs === 0 && warns === 0 && currentProblem) {
     markSolved(currentProblem.id);
   }
@@ -750,7 +711,6 @@ function renderList(diags) {
   });
 }
 
-// ── Reply handling ─────────────────────────────────────────────────────────
 function sendReplyBtn(cardId) {
   var i = document.getElementById('reply-'+cardId);
   if (i) sendReply(cardId, i);
@@ -814,7 +774,6 @@ function appendThinking(card) {
   convo.appendChild(el); convo.scrollTop=convo.scrollHeight; return el;
 }
 
-// ── Think tab ──────────────────────────────────────────────────────────────
 function decodeProblem() {
   var input = document.getElementById('problem-input').value.trim(); if(!input) return;
   var btn = document.getElementById('decode-btn'); btn.disabled=true; btn.textContent='Thinking...';
@@ -844,7 +803,6 @@ function decodeProblem() {
     .catch(function() { te.remove(); appendThinkMsg('ai',"Couldn't reach AI."); })
     .finally ? (function(){btn.disabled=false;btn.textContent='Think through this \u2192';})() : null;
 
-  // Ensure button is re-enabled even if .finally not supported
   setTimeout(function(){btn.disabled=false;btn.textContent='Think through this \u2192';},15000);
 }
 
@@ -885,7 +843,6 @@ function appendThinkThinking() {
   convo.appendChild(el); convo.scrollTop=convo.scrollHeight; return el;
 }
 
-// ── Groq proxy ─────────────────────────────────────────────────────────────
 function callGroq(messages) {
   var prob = currentProblem;
   return fetch('/api/chat', {
@@ -895,7 +852,6 @@ function callGroq(messages) {
   })
   .then(function(resp) { if(!resp.ok) throw new Error('HTTP '+resp.status); return resp.json(); })
   .then(function(data) {
-    // Update status bar to show which provider responded
     var provider = data.provider || 'ai';
     var modelEl = document.getElementById('sb-model');
     if (modelEl) {
@@ -911,7 +867,6 @@ function callGroq(messages) {
   });
 }
 
-// ── Highlight & activate ───────────────────────────────────────────────────
 function highlightSpan(d) {
   if (!editor) return;
   activeDecorations=editor.deltaDecorations(activeDecorations,[]);
@@ -964,15 +919,12 @@ function runCode() {
     panel.style.display = 'flex';
     if (editor) setTimeout(function(){ editor.layout(); }, 20);
     if (data.error && !data.output) {
-      // Compilation failed or runtime crash with no output
       text.style.color = 'var(--red)';
       text.textContent = data.error;
     } else if (data.output) {
-      // Show output; append runtime error beneath if any
       text.style.color = 'var(--txt)';
       text.textContent = data.output + (data.error ? '\n\n[stderr]\n' + data.error : '');
     } else {
-      // Compiled and ran but nothing was printed
       text.style.color = 'var(--muted)';
       text.textContent = '(program ran successfully but printed nothing — does main call print?)';
     }
@@ -1030,7 +982,6 @@ function loadProblemById(id) {
   if (p) loadProblem(p);
 }
 
-// ── Auth & persistence ─────────────────────────────────────────────────────
 var currentUser = null;
 var authToken   = localStorage.getItem('haskell_tutor_token') || '';
 var autosaveTimer = null;
@@ -1121,13 +1072,12 @@ function loadUserProgress() {
         badge.style.display='inline-block';
         badge.textContent = solvedProblems.size + ' solved';
       }
-      filterProblems(); // refresh to show solved state
+      filterProblems(); 
     }
   })
   .catch(function(){});
 }
 
-// loadProblemData inlined into loadProblem
 
 function autoSave() {
   if (!authToken || !currentProblem || !editor) return;
@@ -1149,10 +1099,9 @@ function showSaveIndicator(msg) {
 
 function scheduleAutosave() {
   clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(autoSave, 3000); // save 3s after typing stops
+  autosaveTimer = setTimeout(autoSave, 3000); 
 }
 
-// Check for existing token on load
 (function checkExistingToken() {
   if (!authToken) return;
   fetch('/api/me', {headers:{'Authorization':'Bearer '+authToken}})

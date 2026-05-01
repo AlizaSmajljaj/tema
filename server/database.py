@@ -11,7 +11,6 @@ import os
 from pathlib import Path
 from typing import Optional
 
-# ── Smart Path Logic ───────────────────────────────────────────────────────
 
 def get_db_path():
     env_path = os.environ.get("DB_PATH")
@@ -25,7 +24,6 @@ def get_db_path():
 
 DB_PATH = get_db_path()
 
-# Ensure directory exists
 Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
 
 print(f"[DB] Using database at: {DB_PATH}", flush=True)
@@ -84,7 +82,6 @@ def init_db():
     print(f"[DB] Tables initialised.", flush=True)
 
 
-# ── User auth ──────────────────────────────────────────────────────────────
 
 def register_user(username: str) -> Optional[dict]:
     token = secrets.token_urlsafe(32)
@@ -124,7 +121,6 @@ def get_user_by_username(username: str) -> Optional[dict]:
     return dict(row) if row else None
 
 
-# ── Problem sessions ───────────────────────────────────────────────────────
 
 def save_code(user_id: int, problem_id: str, code: str):
     now = time.time()
@@ -180,7 +176,6 @@ def get_saved_code(user_id: int, problem_id: str) -> str:
     return row["code"] if row else ""
 
 
-# ── Conversations ──────────────────────────────────────────────────────────
 
 def save_message(user_id: int, problem_id: str, role: str, content: str, context: str = "error"):
     now = time.time()
@@ -210,7 +205,6 @@ def clear_conversation(user_id: int, problem_id: str, context: str = "error"):
     conn.close()
 
 
-# ── Experience tracking ────────────────────────────────────────────────────
 
 def increment_category(user_id: int, category: str):
     conn = get_conn()
@@ -232,7 +226,6 @@ def get_experience(user_id: int) -> dict:
     return {r["category"]: r["encounters"] for r in rows}
 
 
-# ── Stats ──────────────────────────────────────────────────────────────────
 
 def get_user_stats(user_id: int) -> dict:
     progress = get_user_progress(user_id)
@@ -249,5 +242,4 @@ def get_user_stats(user_id: int) -> dict:
         "experience": exp,
     }
 
-# Run setup
 init_db()

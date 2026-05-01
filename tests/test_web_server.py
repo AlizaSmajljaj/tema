@@ -16,19 +16,15 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport
 
-# ── We need to mock before importing web_server ───────────────────────────
-
 import sys
 from unittest.mock import MagicMock
 
-# Mock the server modules that require GHC/Groq
 sys.modules.setdefault('server.ghc.bridge',  MagicMock())
 sys.modules.setdefault('server.ghc.models',  MagicMock())
 sys.modules.setdefault('server.ai.engine',   MagicMock())
 sys.modules.setdefault('server.ai.context',  MagicMock())
 
 
-# ── Problem bank validation ───────────────────────────────────────────────
 
 REQUIRED_PROBLEM_FIELDS = {"id", "topic", "title", "difficulty", "description", "stub", "hint"}
 
@@ -37,9 +33,6 @@ VALID_TOPICS = {
     "Higher Order Functions", "Types", "Tuples",
     "Strings", "Algorithms", "Exam Style",
 }
-
-# Inline the problem bank for testing (same data as web_editor.html)
-# tests/test_web_server.py - Replace the entire TEST_PROBLEMS section (lines ~30-130) with this:
 
 TEST_PROBLEMS = [
     # Recursion problems
@@ -278,7 +271,6 @@ class TestProblemBank:
             topics.setdefault(p["topic"], []).append(p["difficulty"])
         for topic, diffs in topics.items():
             if len(diffs) > 1:
-                # Not strictly sorted but max should be >= min
                 assert max(diffs) >= min(diffs), \
                     f"Topic '{topic}' has inconsistent difficulties"
 
@@ -289,13 +281,11 @@ class TestWebServerEndpoints:
     @pytest.fixture
     def mock_app(self):
         """Create a test app with mocked dependencies."""
-        # We test the endpoint logic directly since the full app
-        # requires GHC and Groq to be available
+    
         pass
 
     def test_diagnostic_dict_structure(self):
         """_diagnostic_to_dict should return all required keys."""
-        # Mock a GHCDiagnostic
         diag = MagicMock()
         diag.severity.name = "ERROR"
         diag.span.start_line = 5
@@ -308,7 +298,6 @@ class TestWebServerEndpoints:
         diag.ai_hint         = "What type should this be?"
         diag.ai_scaffold     = "What is the base case?"
 
-        # Replicate the conversion logic
         result = {
             "severity":    diag.severity.name.lower(),
             "startLine":   diag.span.start_line,
@@ -364,14 +353,11 @@ class TestWebServerEndpoints:
             progress[session_id].add(problem_id)
             return list(progress[session_id])
 
-        # Mark first problem solved
         result = mark_solved("session1", "rec1")
         assert "rec1" in result
-        # Mark second problem solved in same session
         mark_solved("session1", "rec2")
         assert len(progress["session1"]) == 2
 
-        # Different session is isolated
         mark_solved("session2", "rec1")
         assert len(progress["session1"]) == 2
         assert len(progress["session2"]) == 1
@@ -394,24 +380,21 @@ class TestWebServerEndpoints:
         """Empty source should return empty diagnostics list."""
         source = ""
         result = source.strip()
-        assert not result  # Empty source should be caught early
-
+        assert not result  
 
 class TestStuckButtonLogic:
     """Test the stuck button timing logic."""
 
     def test_stuck_threshold_is_reasonable(self):
         """Stuck button should appear after a reasonable time (60-120 seconds)."""
-        STUCK_THRESHOLD = 90  # seconds
+        STUCK_THRESHOLD = 90 
         assert 60 <= STUCK_THRESHOLD <= 120, \
             "Stuck threshold should be between 1-2 minutes"
 
     def test_stuck_resets_on_clean_compile(self):
         """Error persist time should reset when code compiles cleanly."""
-        error_persist_time = 95  # Was stuck
-
-        # Simulate clean compile
-        diags = []  # No errors
+        error_persist_time = 95  
+        diags = []  
         if not any(d.get("severity") == "error" for d in diags):
             error_persist_time = 0
 
@@ -422,7 +405,6 @@ class TestStuckButtonLogic:
         error_persist_time = 0
         diags = [{"severity": "error", "message": "some error"}]
 
-        # Simulate 5 seconds of errors
         for _ in range(5):
             if any(d["severity"] == "error" for d in diags):
                 error_persist_time += 1
@@ -479,7 +461,6 @@ class TestThinkTabLogic:
             {"role": "user", "content": "old problem"},
             {"role": "assistant", "content": "old question"},
         ]
-        # Simulate decode reset
         history = []
         assert len(history) == 0
 
@@ -494,7 +475,6 @@ class TestProblemProgression:
         rec_problems = [p for p in TEST_PROBLEMS if p["topic"] == topic]
         unsolved = [p for p in rec_problems if p["id"] not in solved]
         assert len(unsolved) > 0
-        # Next should be the easiest unsolved
         next_p = min(unsolved, key=lambda p: p["difficulty"])
         assert next_p["id"] != "rec1"
 
@@ -503,24 +483,22 @@ class TestProblemProgression:
         rec_ids = {p["id"] for p in TEST_PROBLEMS if p["topic"] == "Recursion"}
         solved  = rec_ids.copy()
         remaining = [p for p in TEST_PROBLEMS if p["id"] not in solved]
-        assert len(remaining) > 0  # Other topics still available
+        assert len(remaining) > 0 
 
     def test_difficulty_increases_with_progress(self):
         """Problems should get harder as student solves more."""
         solved = set()
-        # Simulate solving in order
         for p in sorted(TEST_PROBLEMS, key=lambda x: x["difficulty"]):
             solved.add(p["id"])
             unsolved = [x for x in TEST_PROBLEMS if x["id"] not in solved]
             if unsolved:
                 min_remaining_diff = min(x["difficulty"] for x in unsolved)
-                # Min difficulty of remaining should not go below what we've done
                 max_solved_diff = max(
                     TEST_PROBLEMS[i]["difficulty"]
                     for i, x in enumerate(TEST_PROBLEMS)
                     if x["id"] in solved
                 )
-                assert min_remaining_diff >= 1  # Always valid difficulties
+                assert min_remaining_diff >= 1  
 
 
 class TestWebEditorIntegration:
@@ -558,16 +536,13 @@ class TestWebEditorIntegration:
                 return 'diff-dot hard'
             return 'diff-dot on'
 
-        # Easy problem (difficulty 1)
         assert get_diff_class(1, 1) == 'diff-dot on'
         assert get_diff_class(2, 1) == 'diff-dot'
 
-        # Hard problem (difficulty 4)
         assert get_diff_class(1, 4) == 'diff-dot hard'
         assert get_diff_class(4, 4) == 'diff-dot hard'
         assert get_diff_class(5, 4) == 'diff-dot'
 
-        # Hardest (difficulty 5)
         assert get_diff_class(1, 5) == 'diff-dot vhard'
 
     def test_filter_all_returns_all_problems(self):

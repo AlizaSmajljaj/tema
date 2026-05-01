@@ -1,23 +1,15 @@
-# ── Core Language Server ───────────────────────────────────────────────────
-pygls==1.3.1                  # LSP server framework (JSON-RPC over stdio/TCP)
+pygls==1.3.1                
+fastapi==0.115.5            
+uvicorn[standard]==0.32.1    
+websockets==13.1             
 
-# ── Web Server (custom web editor backend) ────────────────────────────────
-fastapi==0.115.5              # Async web framework for WebSocket + REST
-uvicorn[standard]==0.32.1     # ASGI server for FastAPI
-websockets==13.1              # WebSocket support
+openai==1.59.3               
 
-# ── AI / Groq API (OpenAI-compatible) ────────────────────────────────────
-openai==1.59.3                # OpenAI Python SDK — also works with Groq, Together, etc.
-
-# ── Utilities ─────────────────────────────────────────────────────────────
-python-dotenv==1.0.1          # Load ANTHROPIC_API_KEY from .env file
-aiofiles==24.1.0              # Async file I/O (used by web server)
-
-# ── Testing ───────────────────────────────────────────────────────────────
-pytest==8.3.3                 # Test runner
-pytest-asyncio==0.24.0        # Async test support
-pytest-cov==6.0.0             # Coverage reporting
-httpx==0.27.2                 # Async HTTP client (for testing FastAPI)
+python-dotenv==1.0.1          
+aiofiles==24.1.0              
+pytest==8.3.3                 
+pytest-asyncio==0.24.0       
+httpx==0.27.2                 
 fastapi
 uvicorn
 requests

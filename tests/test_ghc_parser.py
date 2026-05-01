@@ -4,15 +4,10 @@ test_ghc_parser.py — Unit tests for the GHC output parser.
 Tests are fully offline — they use static GHC stderr snapshots so no
 GHC installation is required to run the test suite.
 """
-
 import pytest
 from server.ghc.parser import parse_ghc_output
 from server.ghc.models import Severity, ErrorCategory
 
-
-# ---------------------------------------------------------------------------
-# Fixtures — realistic GHC stderr samples
-# ---------------------------------------------------------------------------
 
 TYPE_ERROR_OUTPUT = """\
 /home/user/Test.hs:5:10: error:
@@ -59,15 +54,10 @@ MULTIPLE_DIAGNOSTICS = """\
     Defined but not used: 'helper'
 """
 
-# GHC >= 9.4 JSON format
 JSON_DIAGNOSTIC_OUTPUT = """\
 {"span":{"file":"/home/user/Test.hs","startLine":5,"startCol":10,"endLine":5,"endCol":17},"severity":"Error","message":"Couldn't match expected type 'Int' with actual type '[Char]'","code":83}
 """
 
-
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
 
 class TestLocationParsing:
     def test_point_location(self):
@@ -93,7 +83,6 @@ class TestLocationParsing:
     def test_lsp_range_is_zero_indexed(self):
         result = parse_ghc_output(TYPE_ERROR_OUTPUT, "/home/user/Test.hs", exit_code=1)
         lsp_range = result.diagnostics[0].span.to_lsp_range()
-        # GHC line 5, col 10 → LSP line 4, char 9
         assert lsp_range["start"]["line"] == 4
         assert lsp_range["start"]["character"] == 9
 

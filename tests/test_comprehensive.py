@@ -177,7 +177,6 @@ class TestPromptStyle:
     def test_hint_format_asks_for_question_or_nudge(self):
         """The format instruction must request a question or gentle nudge for HINT."""
         prompt = build_system_prompt(ErrorCategory.TYPE_ERROR, ExperienceLevel.BEGINNER)
-        # The format instruction should mention question or nudge
         assert "question" in prompt.lower() or "nudge" in prompt.lower() or \
                "gentle" in prompt.lower(), \
             "Format instruction should request question/nudge style for HINT"
@@ -201,7 +200,6 @@ class TestPromptStyle:
         ]
         for cat in analogy_categories:
             prompt = build_system_prompt(cat, ExperienceLevel.BEGINNER)
-            # Should mention analogy or a concrete everyday thing
             has_analogy = any(word in prompt.lower() for word in [
                 "analogy", "imagine", "like a", "think of", "classroom",
                 "vending", "library", "mirror", "box", "container",
@@ -215,7 +213,6 @@ class TestPromptStyle:
                     ErrorCategory.PATTERN_MATCH]:
             beginner = build_system_prompt(cat, ExperienceLevel.BEGINNER)
             advanced = build_system_prompt(cat, ExperienceLevel.ADVANCED)
-            # Advanced guidance section should be shorter
             assert len(advanced) <= len(beginner) + 100, \
                 f"ADVANCED prompt should be shorter than BEGINNER for {cat}"
 
@@ -225,21 +222,16 @@ class TestPromptStyle:
             level: build_system_prompt(ErrorCategory.TYPE_ERROR, level)
             for level in ExperienceLevel
         }
-        # All three prompts must be different
         assert len(set(descriptions.values())) == len(ExperienceLevel), \
             "Each experience level must produce a distinct prompt"
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 2. All 9 categories produce valid prompts
-# ═══════════════════════════════════════════════════════════════════════════
 
 class TestAllCategories:
 
     def test_all_categories_have_guidance(self):
         """Every ErrorCategory must have an entry in _CATEGORY_GUIDANCE."""
         for cat in ErrorCategory:
-            # build_system_prompt must not raise
             prompt = build_system_prompt(cat, ExperienceLevel.BEGINNER)
             assert len(prompt) > 100, \
                 f"Prompt for {cat} is suspiciously short: {len(prompt)} chars"
@@ -258,7 +250,6 @@ class TestAllCategories:
         """Different categories must produce meaningfully different prompts."""
         type_prompt  = build_system_prompt(ErrorCategory.TYPE_ERROR,  ExperienceLevel.BEGINNER)
         scope_prompt = build_system_prompt(ErrorCategory.SCOPE_ERROR, ExperienceLevel.BEGINNER)
-        # The category-specific sections must differ
         assert type_prompt != scope_prompt, \
             "TYPE_ERROR and SCOPE_ERROR prompts must differ"
 
@@ -279,11 +270,6 @@ class TestAllCategories:
         assert expected_word.lower() in prompt.lower(), \
             f"'{expected_word}' not found in {category} prompt"
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 3. Document Highlight handler
-# ═══════════════════════════════════════════════════════════════════════════
-
 class TestDocumentHighlight:
 
     def _make_params(self, line: int, char: int) -> DocumentHighlightParams:
@@ -295,8 +281,6 @@ class TestDocumentHighlight:
     def test_returns_highlight_when_cursor_inside_span(self, server, diag_with_ai):
         """Cursor exactly on the error span → one highlight returned."""
         server._diag_cache[URI] = [diag_with_ai]
-        # diag_with_ai has span: line=5,col=9 to line=5,col=13 (1-indexed)
-        # LSP is 0-indexed so cursor at (4, 9) is inside
         params = self._make_params(line=4, char=9)
         result = document_highlight(server, params)
         assert len(result) == 1
@@ -305,7 +289,6 @@ class TestDocumentHighlight:
     def test_returns_highlight_at_span_start(self, server, diag_with_ai):
         """Cursor exactly at the first character of the span → highlight."""
         server._diag_cache[URI] = [diag_with_ai]
-        # span starts at 1-indexed (5,9) → 0-indexed (4,8)
         params = self._make_params(line=4, char=8)
         result = document_highlight(server, params)
         assert len(result) == 1
@@ -313,14 +296,14 @@ class TestDocumentHighlight:
     def test_returns_empty_when_cursor_before_span(self, server, diag_with_ai):
         """Cursor before the span → no highlight."""
         server._diag_cache[URI] = [diag_with_ai]
-        params = self._make_params(line=4, char=2)  # before col 8
+        params = self._make_params(line=4, char=2) 
         result = document_highlight(server, params)
         assert result == []
 
     def test_returns_empty_when_cursor_after_span(self, server, diag_with_ai):
         """Cursor after the span → no highlight."""
         server._diag_cache[URI] = [diag_with_ai]
-        params = self._make_params(line=4, char=20)  # after col 12
+        params = self._make_params(line=4, char=20)  
         result = document_highlight(server, params)
         assert result == []
 
@@ -345,7 +328,6 @@ class TestDocumentHighlight:
         assert len(result) == 1
         r = result[0].range
         span = diag_with_ai.span
-        # Highlight range must be 0-indexed version of the 1-indexed span
         assert r.start.line      == span.start_line - 1
         assert r.start.character == span.start_col  - 1
         assert r.end.line        == span.end_line   - 1
@@ -358,11 +340,10 @@ class TestDocumentHighlight:
         d2 = make_diag(start_line=7, end_line=7, start_col=1, end_col=5,
                        explanation="e2", hint="h2")
         server._diag_cache[URI] = [d1, d2]
-        # Cursor on d1 (0-indexed line 2)
         params = self._make_params(line=2, char=2)
         result = document_highlight(server, params)
         assert len(result) == 1
-        assert result[0].range.start.line == 2  # d1's line (0-indexed)
+        assert result[0].range.start.line == 2 
 
     def test_diagnostic_without_span_not_highlighted(self, server, make_diag):
         """A diagnostic with no span must not produce a highlight."""
@@ -373,10 +354,6 @@ class TestDocumentHighlight:
         result = document_highlight(server, params)
         assert result == []
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 4. Hover card labels (new Socratic labels)
-# ═══════════════════════════════════════════════════════════════════════════
 
 class TestHoverCardLabels:
 
@@ -394,7 +371,6 @@ class TestHoverCardLabels:
         """Hover card must NOT use the old 'What this means' / 'Hint:' labels."""
         card = _format_hover(diag_with_ai)
         assert "What this means" not in card
-        # "Hint:" as a standalone bold label should be gone
         assert "**Hint:**" not in card
 
     def test_hover_still_contains_ghc_message(self, diag_with_ai):
@@ -418,10 +394,6 @@ class TestHoverCardLabels:
         d = make_diag()
         assert _format_hover(d) == ""
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 5. Full pipeline smoke test
-# ═══════════════════════════════════════════════════════════════════════════
 
 class TestFullPipeline:
     """
@@ -472,7 +444,6 @@ class TestFullPipeline:
 
         await server.compile_and_publish(URI, "-- code\n")
 
-        # enrich_all should have received exactly 5 diagnostics
         call_args = server._engine.enrich_all.call_args[0]
         diags_passed = call_args[0]
         assert len(diags_passed) == 5
@@ -506,7 +477,6 @@ class TestFullPipeline:
 
         await server.compile_and_publish(URI, "x = True + 1\n")
 
-        # Now hover at the error position (0-indexed line=4, char=9)
         from lsprotocol.types import HoverParams, TextDocumentIdentifier
         hover_params = HoverParams(
             text_document=TextDocumentIdentifier(uri=URI),
@@ -547,7 +517,6 @@ class TestFullPipeline:
         server._bridge.compile = AsyncMock(side_effect=RuntimeError("GHC not found"))
         server.publish_diagnostics = MagicMock()
 
-        # Must not raise
         await server.compile_and_publish(URI, "main = putStrLn True\n")
         server.publish_diagnostics.assert_not_called()
 
@@ -564,10 +533,6 @@ class TestFullPipeline:
         server.publish_diagnostics.assert_called_once_with(URI, [])
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 6. Graceful degradation
-# ═══════════════════════════════════════════════════════════════════════════
-
 class TestGracefulDegradation:
 
     @pytest.mark.asyncio
@@ -575,7 +540,7 @@ class TestGracefulDegradation:
         """If GROQ_API_KEY is absent, enrich() returns the original diagnostic."""
         diag = make_diag()
         engine = AIFeedbackEngine(api_key="", context_manager=ContextManager())        
-        engine._client = None   # No API client
+        engine._client = None   
         engine._context = ContextManager()
 
         result = await engine.enrich(diag, "main = True + 1\n", URI)
@@ -606,10 +571,6 @@ class TestGracefulDegradation:
         assert result == []
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 7. Debounce cancellation
-# ═══════════════════════════════════════════════════════════════════════════
-
 class TestDebounce:
 
     @pytest.mark.asyncio
@@ -619,16 +580,14 @@ class TestDebounce:
 
         async def slow_compile(uri, source):
             nonlocal compile_count
-            await asyncio.sleep(0.5)   # longer than test timeout
+            await asyncio.sleep(0.5)  
             compile_count += 1
 
         server._debounced_compile = slow_compile
 
-        # Schedule first task
         server._schedule_compile(URI, "v1")
         first_task = server._debounce_tasks[URI]
 
-        # Immediately schedule second task
         server._schedule_compile(URI, "v2")
         second_task = server._debounce_tasks[URI]
 
@@ -646,15 +605,10 @@ class TestDebounce:
         for i in range(5):
             server._schedule_compile(URI, f"version {i}")
 
-        # Only one task should be active
         assert URI in server._debounce_tasks
         pending = [t for t in [server._debounce_tasks[URI]] if not t.done()]
         assert len(pending) == 1
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 8. LSP Diagnostic conversion round-trip
-# ═══════════════════════════════════════════════════════════════════════════
 
 class TestDiagnosticConversion:
 
@@ -674,8 +628,8 @@ class TestDiagnosticConversion:
         """GHC 1-indexed coords must become 0-indexed in LSP Diagnostic."""
         d = make_diag(start_line=5, start_col=9, end_line=5, end_col=13)
         lsp = _to_lsp_diagnostic(d)
-        assert lsp.range.start.line      == 4   # 5-1
-        assert lsp.range.start.character == 8   # 9-1
+        assert lsp.range.start.line      == 4   
+        assert lsp.range.start.character == 8   
         assert lsp.range.end.line        == 4
 
     def test_ai_content_embedded_in_message(self, diag_with_ai):
@@ -704,10 +658,6 @@ class TestDiagnosticConversion:
         lsp = _to_lsp_diagnostic(d)
         assert lsp is not None
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 9. Web server diagnostic dict shape
-# ═══════════════════════════════════════════════════════════════════════════
 
 class TestWebServerDictShape:
 
@@ -757,11 +707,6 @@ class TestWebServerDictShape:
         serialised = json.dumps(d)
         assert len(serialised) > 10
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 10. Context reset and experience level advancement
-# ═══════════════════════════════════════════════════════════════════════════
-
 class TestContextAndLevels:
 
     def test_fresh_context_is_beginner_for_all_categories(self):
@@ -786,7 +731,6 @@ class TestContextAndLevels:
         ctx = ContextManager().get_or_create(URI)
         for _ in range(_ADVANCED_THRESHOLD):
             ctx.record_diagnostic(ErrorCategory.TYPE_ERROR, "test error")
-        # All other categories must still be BEGINNER
         for cat in ErrorCategory:
             if cat != ErrorCategory.TYPE_ERROR:
                 assert ctx.get_level(cat) == ExperienceLevel.BEGINNER, \
@@ -816,11 +760,6 @@ class TestContextAndLevels:
         b = mgr.get_or_create(URI)
         assert a is b
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 11. Source context extraction
-# ═══════════════════════════════════════════════════════════════════════════
-
 class TestSourceContextExtraction:
 
     SOURCE = "\n".join([f"line{i}" for i in range(1, 21)])  # 20 lines
@@ -837,7 +776,6 @@ class TestSourceContextExtraction:
                           end_line=10, end_col=5)
         ctx = _extract_source_context(self.SOURCE, span.start_line, radius=3)
 
-        # Should include a few lines before line 10
         assert "line7" in ctx or "line8" in ctx or "line9" in ctx
 
     def test_includes_lines_after_error(self):
@@ -853,7 +791,7 @@ class TestSourceContextExtraction:
         span = SourceSpan(file="Main.hs", start_line=1, start_col=1, end_line=1, end_col=5)
         ctx = _extract_source_context(self.SOURCE, span.start_line, radius=3)
 
-        assert "line1" in ctx  # Must not crash on out-of-bounds
+        assert "line1" in ctx  
 
     def test_handles_span_at_end_of_file(self):
         from server.ghc.models import SourceSpan
@@ -865,12 +803,8 @@ end_line=20, end_col=5)
 
     def test_returns_empty_string_for_none_span(self):
         result = _extract_source_context(self.SOURCE, 1, radius=3)
-        assert result == "" or result is not None   # Must not crash
+        assert result == "" or result is not None   
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 12. Response parse edge cases
-# ══════════════════════════════════
 
 class TestResponseParseEdgeCases:
 
@@ -916,11 +850,6 @@ class TestResponseParseEdgeCases:
         exp, hint = parse_response(raw)
         assert "First line" in exp
         assert hint == "A question?"
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 13. Prompt user-turn building
-# ═══════════════════════════════════════════════════════════════════════════
 
 class TestUserPromptBuilding:
 

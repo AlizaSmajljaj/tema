@@ -46,18 +46,16 @@ from server.ai.prompts import build_system_prompt, build_user_prompt, parse_resp
 
 logger = logging.getLogger(__name__)
 
-# ── Configuration ─────────────────────────────────────────────────────────
 
 _GROQ_URL    = "https://api.groq.com/openai/v1/chat/completions"
-_DEFAULT_MODEL = "llama-3.1-8b-instant"   # fast, free, great for code errors
+_DEFAULT_MODEL = "llama-3.1-8b-instant"  
 _MAX_TOKENS    = 300
 _CONTEXT_LINES = 3
-_TIMEOUT_SECS  = 10    # hard timeout per request — keeps editor snappy
+_TIMEOUT_SECS  = 10   
 
 _SKIP_CATEGORIES: frozenset[ErrorCategory] = frozenset()
 
 
-# ── Thin HTTP wrapper ─────────────────────────────────────────────────────
 
 class _GroqClient:
     """
@@ -106,7 +104,6 @@ class _GroqClient:
         return resp.json()["choices"][0]["message"]["content"]
 
 
-# ── Engine ────────────────────────────────────────────────────────────────
 
 class AIFeedbackEngine:
     """
@@ -134,15 +131,12 @@ class AIFeedbackEngine:
         model: str | None = None,
         context_manager: ContextManager | None = None,
     ) -> None:
-        # If api_key is explicitly provided (even as an empty string), respect it.
-        # Otherwise, fall back to the environment variable.
         self._api_key = api_key if api_key is not None else os.environ.get("GROQ_API_KEY", "")
         self._model   = model or os.environ.get("GROQ_MODEL", _DEFAULT_MODEL)
         self._context = context_manager or ContextManager()
         self._client  = _GroqClient(api_key=self._api_key, model=self._model)
         logger.info("AIFeedbackEngine ready [provider=Groq, model=%s]", self._model)
 
-    # ── Public API ────────────────────────────────────────────────────────
 
     async def enrich(
         self,
@@ -179,7 +173,7 @@ class AIFeedbackEngine:
         except (requests.ConnectionError, requests.Timeout) as exc:
             logger.warning("Groq connection error: %s", exc)
             return diagnostic
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc: 
             logger.error("Unexpected error during AI enrichment: %s", exc, exc_info=True)
             return diagnostic
 
@@ -201,7 +195,6 @@ class AIFeedbackEngine:
     def context_manager(self) -> ContextManager:
         return self._context
 
-    # ── Internal ─────────────────────────────────────────────────────────
 
     async def _enrich_inner(
         self,
@@ -250,7 +243,6 @@ class AIFeedbackEngine:
         )
 
 
-# ── Module helpers ────────────────────────────────────────────────────────
 
 def _extract_source_context(source: str, line: int, radius: int) -> str:
     """

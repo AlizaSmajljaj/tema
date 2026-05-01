@@ -60,7 +60,6 @@ class ExperienceLevel(Enum):
         }[self]
 
 
-# Thresholds: encounters needed to move up a level
 _INTERMEDIATE_THRESHOLD = 2
 _ADVANCED_THRESHOLD = 5
 
@@ -69,7 +68,7 @@ _ADVANCED_THRESHOLD = 5
 class CategoryStats:
     """Statistics for one error category within one file context."""
     encounters: int = 0
-    last_message: str = ""          # last GHC message seen for this category
+    last_message: str = ""         
 
     @property
     def level(self) -> ExperienceLevel:

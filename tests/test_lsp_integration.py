@@ -42,11 +42,6 @@ from server.lsp_server import (
 )
 from server.web_server import _diagnostic_to_dict
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Shared fixtures
-# ═══════════════════════════════════════════════════════════════════════════
-
 @pytest.fixture
 def type_error_diag() -> GHCDiagnostic:
     return GHCDiagnostic(
@@ -82,11 +77,6 @@ def compilation_result(type_error_diag, warning_diag) -> CompilationResult:
         raw_stderr="...",
     )
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# _to_lsp_diagnostic conversion tests
-# ═══════════════════════════════════════════════════════════════════════════
-
 class TestToLspDiagnostic:
 
     def test_error_severity_mapped(self, type_error_diag):
@@ -101,7 +91,6 @@ class TestToLspDiagnostic:
 
     def test_range_is_zero_indexed(self, type_error_diag):
         lsp = _to_lsp_diagnostic(type_error_diag)
-        # GHC: start_line=5, start_col=9 → LSP: line=4, character=8
         assert lsp.range.start.line      == 4
         assert lsp.range.start.character == 8
 
@@ -134,13 +123,8 @@ class TestToLspDiagnostic:
 
     def test_no_ai_content_message_is_just_ghc(self, warning_diag):
         lsp = _to_lsp_diagnostic(warning_diag)
-        # No AI content → message equals the GHC message only
         assert lsp.message.strip() == warning_diag.message
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# _format_hover tests
-# ═══════════════════════════════════════════════════════════════════════════
 
 class TestFormatHover:
 
@@ -162,17 +146,12 @@ class TestFormatHover:
 
     def test_is_markdown(self, type_error_diag):
         result = _format_hover(type_error_diag)
-        assert "###" in result      # heading
-        assert "```" in result      # code block for GHC message
+        assert "###" in result     
+        assert "```" in result      
 
     def test_severity_in_header(self, type_error_diag):
         result = _format_hover(type_error_diag)
         assert "Error" in result
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Position helpers
-# ═══════════════════════════════════════════════════════════════════════════
 
 class TestPositionHelpers:
 
@@ -188,7 +167,6 @@ class TestPositionHelpers:
         )
 
     def test_position_inside_span(self, type_error_diag):
-        # Span: line 5, col 9-13 → LSP line 4, char 8-12
         assert _position_in_span(self._pos(4, 9), type_error_diag)
 
     def test_position_at_span_start(self, type_error_diag):
@@ -209,16 +187,11 @@ class TestPositionHelpers:
         assert not _position_in_span(Position(line=0, character=0), diag)
 
     def test_range_overlaps_span(self, type_error_diag):
-        # Cursor range covering line 5 (LSP: line 4)
         assert _range_overlaps(self._range(4, 0, 4, 20), type_error_diag)
 
     def test_range_does_not_overlap(self, type_error_diag):
         assert not _range_overlaps(self._range(0, 0, 1, 0), type_error_diag)
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# HaskellLanguageServer pipeline tests (GHCBridge and AI mocked)
-# ═══════════════════════════════════════════════════════════════════════════
 
 class TestCompileAndPublish:
     """
@@ -229,14 +202,13 @@ class TestCompileAndPublish:
     def _make_server(self, compilation_result) -> HaskellLanguageServer:
         """Create a server instance with all external deps mocked."""
         srv = HaskellLanguageServer.__new__(HaskellLanguageServer)
-        # Initialise required attributes without calling super().__init__()
-        # (which would try to set up socket handlers)
+
         srv._bridge          = MagicMock()
         srv._bridge.compile  = AsyncMock(return_value=compilation_result)
         srv._context         = MagicMock()
         srv._engine          = MagicMock()
         srv._engine.enrich_all = AsyncMock(
-            side_effect=lambda diags, *a, **kw: diags  # pass-through
+            side_effect=lambda diags, *a, **kw: diags  
         )
         srv._debounce_tasks  = {}
         srv._diag_cache      = {}
@@ -270,7 +242,6 @@ class TestCompileAndPublish:
         srv._debounce_tasks = {}
         srv._diag_cache     = {}
         srv.publish_diagnostics = MagicMock()
-        # Should not raise — error is caught and logged
         await srv.compile_and_publish("file:///Main.hs", "module Main where")
         srv.publish_diagnostics.assert_not_called()
 
@@ -279,7 +250,6 @@ class TestCompileAndPublish:
         srv = self._make_server(compilation_result)
         uri = "file:///Main.hs"
 
-        # Schedule two compiles in quick succession
         srv._schedule_compile(uri, "source v1")
         task1 = srv._debounce_tasks[uri]
 
@@ -289,21 +259,16 @@ class TestCompileAndPublish:
         assert task1 is not task2
         assert task1.cancelled() or task1.cancelling()
 
-        # Clean up
         task2.cancel()
         await asyncio.sleep(0)
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# _diagnostic_to_dict (web server serialisation)
-# ═══════════════════════════════════════════════════════════════════════════
 
 class TestDiagnosticToDict:
 
     def test_all_keys_present(self, type_error_diag):
         d = _diagnostic_to_dict(type_error_diag)
         for key in ("severity", "message", "category", "startLine", "startCol",
-                    "endLine", "endCol", "explanation", "hint", "errorCode"):
+                    "endLine", "endCol", "explanation", "hint", "scaffold"):
             assert key in d, f"Missing key: {key}"
 
     def test_severity_is_string(self, type_error_diag):
@@ -312,7 +277,6 @@ class TestDiagnosticToDict:
 
     def test_positions_are_one_indexed(self, type_error_diag):
         d = _diagnostic_to_dict(type_error_diag)
-        # GHC span: start_line=5, start_col=9 — should be passed through as-is
         assert d["startLine"] == 5
         assert d["startCol"]  == 9
 
@@ -327,12 +291,9 @@ class TestDiagnosticToDict:
             message="x", category=ErrorCategory.UNKNOWN,
         )
         d = _diagnostic_to_dict(diag)
-        assert d["startLine"] == 1
+        assert d["startLine"] == 0
+        assert d["startCol"] == 0
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Web server REST endpoint tests
-# ═══════════════════════════════════════════════════════════════════════════
 
 class TestWebServerHealth:
 

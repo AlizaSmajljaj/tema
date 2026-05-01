@@ -34,10 +34,7 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
 # Regex patterns for classic GHC output
-# ---------------------------------------------------------------------------
-
 # Matches the header line of a diagnostic, e.g.:
 #   /abs/path/File.hs:12:4: error:
 #   /abs/path/File.hs:12:4-9: warning: [-Wunused-binds]
@@ -45,11 +42,11 @@ logger = logging.getLogger(__name__)
 
 #_HEADER_RE = re.compile(
 #    r"^(?P<file>.+\.hs)"
- #   r":(?P<loc>"
-  #      r"(?:\(\d+,\d+\)-\(\d+,\d+\))"   # (line,col)-(line,col) range
-   #     r"|(?:\d+:\d+-\d+)"               # line:col-col range
-   #     r"|(?:\d+:\d+)"                   # line:col point
-   # r")"
+#   r":(?P<loc>"
+#      r"(?:\(\d+,\d+\)-\(\d+,\d+\))"   # (line,col)-(line,col) range
+#     r"|(?:\d+:\d+-\d+)"               # line:col-col range
+#     r"|(?:\d+:\d+)"                   # line:col point
+# r")"
     #r":\s*(?P<severity>error|warning|note)\s*:?"
     #r"(?:\s*\[(?P<code>[^\]]+)\])?"        # optional [-Wflag] or [GHC-NNNN]
     #r"\s*$",
@@ -61,16 +58,10 @@ _HEADER_RE = re.compile(
     r"(\s+\[(?P<code>.*?)\])?",
     re.IGNORECASE
 )
-# Version line: "ghc: version 9.4.7"
 _VERSION_RE = re.compile(r"The Glorious Glasgow Haskell Compilation System,\s+version\s+([\d.]+)")
 
-# Matches GHC >= 9.4 JSON diagnostics flag indicator in stderr
 _JSON_MARKER = re.compile(r'^\{"version":|^\{"span":')
 
-
-# ---------------------------------------------------------------------------
-# Category detection — regex matched against the error message body
-# ---------------------------------------------------------------------------
 
 _CATEGORY_PATTERNS: list[tuple[re.Pattern, ErrorCategory]] = [
     # Type errors
@@ -109,10 +100,6 @@ def _detect_category(message: str) -> ErrorCategory:
     return ErrorCategory.UNKNOWN
 
 
-# ---------------------------------------------------------------------------
-# Location parsing helpers
-# ---------------------------------------------------------------------------
-
 def _parse_location(file: str, loc_str: str) -> SourceSpan:
     """
     Parse GHC location string into a SourceSpan.
@@ -122,22 +109,19 @@ def _parse_location(file: str, loc_str: str) -> SourceSpan:
       "12:4-9"         → same line range (line 12, col 4–9)
       "(12,4)-(13,8)"  → multi-line range
     """
-    # (line,col)-(line,col)
     m = re.match(r"\((\d+),(\d+)\)-\((\d+),(\d+)\)", loc_str)
     if m:
         return SourceSpan(file, int(m[1]), int(m[2]), int(m[3]), int(m[4]))
 
-    # line:col-col
     m = re.match(r"(\d+):(\d+)-(\d+)", loc_str)
     if m:
         return SourceSpan(file, int(m[1]), int(m[2]), int(m[1]), int(m[3]))
 
-    # line:col (point)
     m = re.match(r"(\d+):(\d+)", loc_str)
     if m:
         return SourceSpan(file, int(m[1]), int(m[2]), int(m[1]), int(m[2]))
 
-    # Fallback — file-level span
+    
     logger.warning("Could not parse GHC location: %r", loc_str)
     return SourceSpan(file, 1, 1, 1, 1)
 
@@ -150,10 +134,6 @@ def _parse_severity(text: str) -> Severity:
         return Severity.WARNING
     return Severity.INFO
 
-
-# ---------------------------------------------------------------------------
-# Classic text parser (state machine)
-# ---------------------------------------------------------------------------
 
 class _ClassicParser:
     """
@@ -172,7 +152,6 @@ class _ClassicParser:
         self.ghc_version: Optional[str] = None
 
     def feed(self, line: str) -> None:
-        # Check for version string
         vm = _VERSION_RE.search(line)
         if vm:
             self.ghc_version = vm.group(1)
@@ -184,7 +163,6 @@ class _ClassicParser:
             self._current_header = m
             self._body_lines = []
         elif self._current_header is not None:
-            # Accumulate indented body lines; skip blank-ish separator lines
             if line.strip():
                 self._body_lines.append(line.rstrip())
 
@@ -202,8 +180,6 @@ class _ClassicParser:
         sev_str   = m.group("severity")
         code      = m.group("code")
 
-        # Only emit diagnostics for our target file (GHC sometimes prints
-        # errors from imported modules; we surface those as notes).
         span = _parse_location(file_path, loc_str)
         severity = _parse_severity(sev_str)
         message = "\n".join(self._body_lines).strip()
@@ -224,10 +200,6 @@ class _ClassicParser:
         self._current_header = None
         self._body_lines = []
 
-
-# ---------------------------------------------------------------------------
-# JSON parser (GHC >= 9.4 with -fdiagnostics-as-json)
-# ---------------------------------------------------------------------------
 
 def _parse_json_diagnostics(stderr: str, target_file: str) -> tuple[list[GHCDiagnostic], Optional[str]]:
     """
@@ -277,10 +249,6 @@ def _parse_json_diagnostics(stderr: str, target_file: str) -> tuple[list[GHCDiag
     return diagnostics, ghc_version
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
 def parse_ghc_output(
     stderr: str,
     target_file: str,
@@ -308,7 +276,6 @@ def parse_ghc_output(
     if not stderr.strip():
         return result
 
-    # Detect format: does any line look like a JSON diagnostic?
     use_json = any(_JSON_MARKER.match(l.strip()) for l in stderr.splitlines())
 
     if use_json:

@@ -35,7 +35,6 @@ from server.ghc.models import ErrorCategory
 from server.ai.context import ExperienceLevel
 
 
-# ── Shared constants ───────────────────────────────────────────────────────
 
 _FORMAT_INSTRUCTION = """
 Your response MUST follow this exact format — no other text, no markdown headers:
@@ -51,7 +50,6 @@ _NO_CODE_RULE = (
     "Your goal is to spark curiosity and guide the student to find it themselves."
 )
 
-# ── Teaching style guide ───────────────────────────────────────────────────
 
 _TEACHING_STYLE = """
 TEACHING STYLE — read this carefully:
@@ -71,7 +69,6 @@ TEACHING STYLE — read this carefully:
 """.strip()
 
 
-# ── System prompt templates ────────────────────────────────────────────────
 
 _BASE_SYSTEM = """
 You are a warm, patient, and curious Haskell tutor embedded in a code editor.
@@ -254,7 +251,6 @@ them to look up any unfamiliar terms.
 }
 
 
-# ── User turn template ─────────────────────────────────────────────────────
 
 _USER_TURN = """
 Here is the GHC error the student encountered:
@@ -272,7 +268,6 @@ Please explain this error and provide a hint, following the format specified.
 """.strip()
 
 
-# ── Public API ─────────────────────────────────────────────────────────────
 
 def build_system_prompt(
     category: ErrorCategory,
@@ -376,7 +371,6 @@ def parse_response(raw: str) -> tuple[str, str]:
         elif line.upper().startswith("HINT:"):
             hint = line[len("HINT:"):].strip()
 
-    # Graceful fallback: if parsing failed, use full response as explanation
     if not explanation:
         explanation = raw.strip()
 

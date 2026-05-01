@@ -40,10 +40,8 @@ import sys
 
 from dotenv import load_dotenv
 
-# Load .env before anything else so env vars are available to all modules
 load_dotenv()
 
-# ── Logging setup ──────────────────────────────────────────────────────────
 
 def _configure_logging(level_name: str = "INFO") -> None:
     """
@@ -61,7 +59,6 @@ def _configure_logging(level_name: str = "INFO") -> None:
     )
 
 
-# ── Entry points ───────────────────────────────────────────────────────────
 
 def run_lsp() -> None:
     """
@@ -77,7 +74,6 @@ def run_lsp() -> None:
     logger = logging.getLogger(__name__)
     logger.info("Starting Haskell AI LSP server (stdio mode)")
 
-    # Import here to avoid circular imports and to defer pygls loading
     from server.lsp_server import server
     server.start_io()
 
@@ -92,7 +88,6 @@ def run_web() -> None:
     _configure_logging(os.environ.get("LOG_LEVEL", "INFO"))
     logger = logging.getLogger(__name__)
 
-    # Railway injects PORT; WEB_SERVER_PORT is our own override; 8765 is the local default
     port = int(os.environ.get("PORT") or os.environ.get("WEB_SERVER_PORT", 8765))
     logger.info("Starting Haskell AI web server on port %d", port)
 
@@ -101,7 +96,6 @@ def run_web() -> None:
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 
-# ── CLI ────────────────────────────────────────────────────────────────────
 
 def main() -> None:
     parser = argparse.ArgumentParser(

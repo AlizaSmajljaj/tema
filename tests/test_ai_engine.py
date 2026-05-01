@@ -23,10 +23,6 @@ from server.ai.prompts import (
 from server.ai.engine import AIFeedbackEngine, _extract_source_context, _basename
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Fixtures
-# ═══════════════════════════════════════════════════════════════════════════
-
 @pytest.fixture
 def simple_type_error() -> GHCDiagnostic:
     return GHCDiagnostic(
@@ -97,10 +93,6 @@ def engine_with_mock_client(context_manager) -> AIFeedbackEngine:
     return engine
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Context tracking tests
-# ═══════════════════════════════════════════════════════════════════════════
-
 class TestCategoryStats:
     def test_first_encounter_is_beginner(self):
         mgr = ContextManager()
@@ -127,10 +119,10 @@ class TestCategoryStats:
     def test_levels_are_independent_per_category(self):
         mgr = ContextManager()
         ctx = mgr.get_or_create("file:///a.hs")
-        # Advance to ADVANCED on TYPE_ERROR
+        
         for i in range(_ADVANCED_THRESHOLD + 1):
             ctx.record_diagnostic(ErrorCategory.TYPE_ERROR, "t")
-        # SCOPE_ERROR is still BEGINNER
+       
         level = ctx.record_diagnostic(ErrorCategory.SCOPE_ERROR, "s")
         assert level == ExperienceLevel.BEGINNER
         assert ctx.get_level(ErrorCategory.TYPE_ERROR) == ExperienceLevel.ADVANCED
@@ -182,10 +174,6 @@ class TestExperienceLevel:
             assert isinstance(desc, str)
             assert len(desc) > 10
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Prompt building tests
-# ═══════════════════════════════════════════════════════════════════════════
 
 class TestSystemPrompt:
     def test_contains_level_description(self):
@@ -245,11 +233,6 @@ class TestUserPrompt:
         )
         assert "not available" in prompt
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Response parsing tests
-# ═══════════════════════════════════════════════════════════════════════════
-
 class TestParseResponse:
     def test_parses_well_formed_response(self):
         raw = (
@@ -288,10 +271,6 @@ class TestParseResponse:
         assert hint == "Also spaces."
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Source context extraction tests
-# ═══════════════════════════════════════════════════════════════════════════
-
 class TestExtractSourceContext:
     def test_marks_error_line(self, sample_source):
         ctx = _extract_source_context(sample_source, line=8, radius=2)
@@ -303,13 +282,11 @@ class TestExtractSourceContext:
     def test_respects_radius(self, sample_source):
         ctx = _extract_source_context(sample_source, line=8, radius=2)
         lines = ctx.splitlines()
-        # radius=2 → lines 6,7,8,9,10 → 5 lines
         assert len(lines) == 5
 
     def test_clamps_at_start_of_file(self, sample_source):
         ctx = _extract_source_context(sample_source, line=1, radius=3)
         lines = ctx.splitlines()
-        # Can't go before line 1 — only lines 1..4
         assert all(int(l.split("|")[0].strip()) >= 1 for l in lines)
 
     def test_clamps_at_end_of_file(self, sample_source):
@@ -333,10 +310,6 @@ class TestBasename:
     def test_filename_only(self):
         assert _basename("Main.hs") == "Main.hs"
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# AIFeedbackEngine integration tests (mocked API)
-# ═══════════════════════════════════════════════════════════════════════════
 
 class TestAIFeedbackEngine:
     @pytest.mark.asyncio
@@ -383,7 +356,6 @@ class TestAIFeedbackEngine:
         result = await engine.enrich(
             simple_type_error, sample_source, "file:///Main.hs"
         )
-        # Falls back gracefully — returns original unchanged
         assert result is simple_type_error
 
     @pytest.mark.asyncio
@@ -410,7 +382,7 @@ class TestAIFeedbackEngine:
         self, engine_with_mock_client, simple_type_error, sample_source
     ):
         uri = "file:///Main.hs"
-        # Call enough times to advance past BEGINNER
+       
         for _ in range(_INTERMEDIATE_THRESHOLD + 1):
             await engine_with_mock_client.enrich(
                 simple_type_error, sample_source, uri
@@ -436,4 +408,4 @@ class TestAIFeedbackEngine:
         )
         call_kwargs = engine_with_mock_client._client.chat_complete.call_args.kwargs
         system = call_kwargs["system"]
-        assert len(system) > 50  # non-trivial system prompt
+        assert len(system) > 50 

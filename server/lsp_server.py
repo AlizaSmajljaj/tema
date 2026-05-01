@@ -54,25 +54,24 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from lsprotocol.types import (
-    # Lifecycle
     InitializeParams, InitializeResult, ServerCapabilities,
     TextDocumentSyncKind, TextDocumentSyncOptions,
-    # Diagnostics
+    
     Diagnostic, DiagnosticSeverity, Position, Range,
     PublishDiagnosticsParams,
-    # Hover
+
     Hover, HoverParams, MarkupContent, MarkupKind,
-    # Code actions
+
     CodeAction, CodeActionKind, CodeActionParams,
     Command,
-    # Document highlight — visually marks the error token in the editor
+
     DocumentHighlight, DocumentHighlightKind, DocumentHighlightParams,
-    # Document sync
+
     DidOpenTextDocumentParams, DidChangeTextDocumentParams,
     DidSaveTextDocumentParams, DidCloseTextDocumentParams,
-    # Text edit
+
     TextEdit, WorkspaceEdit,
-    # Misc
+
     TEXT_DOCUMENT_DID_OPEN, TEXT_DOCUMENT_DID_CHANGE,
     TEXT_DOCUMENT_DID_SAVE, TEXT_DOCUMENT_DID_CLOSE,
     TEXT_DOCUMENT_HOVER, TEXT_DOCUMENT_CODE_ACTION,
@@ -86,26 +85,19 @@ from server.ghc.models import GHCDiagnostic, Severity
 from server.ai.engine import AIFeedbackEngine
 from server.ai.context import ContextManager
 
-# Load .env file if present (picks up GROQ_API_KEY, GHC_PATH, etc.)
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# ── Constants ──────────────────────────────────────────────────────────────
 
 SERVER_NAME    = "haskell-ai-lsp"
 SERVER_VERSION = "0.1.0"
 
-# Debounce delay in seconds. Compilation is triggered 600 ms after the last
-# keystroke. Lowering this makes feedback faster but increases GHC/API load.
 DEBOUNCE_DELAY = 0.6
 
-# Maximum number of diagnostics to enrich with AI per compilation.
-# GHC cascades errors, so enriching all 30+ of them wastes API quota.
 MAX_AI_ENRICHMENTS = 5
 
 
-# ── Server ─────────────────────────────────────────────────────────────────
 
 class HaskellLanguageServer(LanguageServer):
     """
@@ -124,22 +116,16 @@ class HaskellLanguageServer(LanguageServer):
     def __init__(self) -> None:
         super().__init__(SERVER_NAME, SERVER_VERSION)
 
-        # Core components — initialised here, reconfigured in _on_initialize
         self._bridge  = GHCBridge()
         self._context = ContextManager()
         self._engine  = AIFeedbackEngine(context_manager=self._context)
 
-        # Debounce: maps document URI → asyncio.Task
-        # When a new didChange arrives, the old task is cancelled.
         self._debounce_tasks: dict[str, asyncio.Task] = {}
 
-        # Diagnostic cache: maps URI → list of enriched GHCDiagnostic
-        # Used by the hover handler to look up explanations by position.
         self._diag_cache: dict[str, list[GHCDiagnostic]] = {}
 
         logger.info("%s %s initialised", SERVER_NAME, SERVER_VERSION)
 
-    # ── Lifecycle ──────────────────────────────────────────────────────────
 
     def reconfigure(self, settings: dict) -> None:
         """
@@ -162,7 +148,6 @@ class HaskellLanguageServer(LanguageServer):
             )
             logger.info("AI model updated to %s", model)
 
-    # ── Compilation pipeline ───────────────────────────────────────────────
 
     async def compile_and_publish(self, uri: str, source: str) -> None:
         """
@@ -185,18 +170,14 @@ class HaskellLanguageServer(LanguageServer):
 
         diags = result.diagnostics
 
-        # Enrich only the first MAX_AI_ENRICHMENTS diagnostics to respect
-        # rate limits. Errors beyond this still appear as plain LSP diagnostics.
         to_enrich = diags[:MAX_AI_ENRICHMENTS]
         rest      = diags[MAX_AI_ENRICHMENTS:]
 
         enriched = await self._engine.enrich_all(to_enrich, source, uri)
         all_diags = enriched + rest
 
-        # Cache for hover lookups
         self._diag_cache[uri] = all_diags
 
-        # Convert to LSP types and publish
         lsp_diags = [_to_lsp_diagnostic(d) for d in all_diags]
         self.publish_diagnostics(uri, lsp_diags)
 
@@ -217,7 +198,7 @@ class HaskellLanguageServer(LanguageServer):
             await asyncio.sleep(DEBOUNCE_DELAY)
             await self.compile_and_publish(uri, source)
         except asyncio.CancelledError:
-            pass  # superseded by a newer keystroke — silently discard
+            pass 
 
     def _schedule_compile(self, uri: str, source: str) -> None:
         """
@@ -233,12 +214,10 @@ class HaskellLanguageServer(LanguageServer):
         self._debounce_tasks[uri] = task
 
 
-# ── Module-level server instance ───────────────────────────────────────────
 
 server = HaskellLanguageServer()
 
 
-# ── LSP feature handlers ───────────────────────────────────────────────────
 
 @server.feature(TEXT_DOCUMENT_DID_OPEN)
 async def did_open(ls: HaskellLanguageServer, params: DidOpenTextDocumentParams) -> None:
@@ -258,7 +237,7 @@ def did_change(ls: HaskellLanguageServer, params: DidChangeTextDocumentParams) -
     than awaiting directly. The debounce task runs on the event loop.
     """
     uri    = params.text_document.uri
-    source = params.content_changes[-1].text   # last change = full document text
+    source = params.content_changes[-1].text 
     logger.debug("didChange: %s (scheduling debounced compile)", uri)
     ls._schedule_compile(uri, source)
 
@@ -274,14 +253,12 @@ async def did_save(ls: HaskellLanguageServer, params: DidSaveTextDocumentParams)
     uri = params.text_document.uri
     logger.debug("didSave: %s", uri)
 
-    # Cancel any pending debounce — the save supersedes it
     old = ls._debounce_tasks.get(uri)
     if old and not old.done():
         old.cancel()
 
     source = getattr(params, "text", None)
     if source is None:
-        # Text not included — read from the editor's open document buffer
         doc = ls.workspace.get_document(uri)
         source = doc.source if doc else ""
 
@@ -366,7 +343,6 @@ def code_action(
         if not (diag.ai_explanation or diag.ai_hint):
             continue
 
-        # Build the explanation text to show in the action title
         preview = (diag.ai_explanation or "")[:60]
         if len(diag.ai_explanation or "") > 60:
             preview += "…"
@@ -376,9 +352,6 @@ def code_action(
                 title=f"💡 AI: {preview}" if preview else "💡 Explain this error (AI)",
                 kind=CodeActionKind.QuickFix,
                 diagnostics=[_to_lsp_diagnostic(diag)],
-                # We use a no-op command — the explanation is already in the
-                # diagnostic hover. The action just surfaces the AI content
-                # in the code action menu for discoverability.
                 command=Command(
                     title="Show AI explanation",
                     command="haskell-ai-lsp.showExplanation",
@@ -427,7 +400,6 @@ def document_highlight(
     return highlights
 
 
-# ── Conversion helpers ─────────────────────────────────────────────────────
 
 def _to_lsp_diagnostic(d: GHCDiagnostic) -> Diagnostic:
     """
@@ -437,7 +409,6 @@ def _to_lsp_diagnostic(d: GHCDiagnostic) -> Diagnostic:
     so they appear in the editor's Problems panel even without hover.
     The hover handler provides a richer formatted version.
     """
-    # Build the message: GHC text first, then AI content on new lines
     parts = [d.message]
     if d.ai_explanation:
         parts.append(f"\n💡 {d.ai_explanation}")
@@ -445,7 +416,6 @@ def _to_lsp_diagnostic(d: GHCDiagnostic) -> Diagnostic:
         parts.append(f"🔑 {d.ai_hint}")
     message = "\n".join(parts)
 
-    # Map our Severity enum to LSP DiagnosticSeverity
     severity_map = {
         Severity.ERROR:   DiagnosticSeverity.Error,
         Severity.WARNING: DiagnosticSeverity.Warning,
@@ -455,7 +425,6 @@ def _to_lsp_diagnostic(d: GHCDiagnostic) -> Diagnostic:
     lsp_severity = severity_map.get(d.severity, DiagnosticSeverity.Error)
 
     if d.span:
-        # LSP uses 0-indexed lines and columns; GHC uses 1-indexed
         lsp_range = Range(
             start=Position(line=d.span.start_line - 1, character=d.span.start_col - 1),
             end=Position(
@@ -495,18 +464,15 @@ def _format_hover(d: GHCDiagnostic) -> str:
     """
     lines: list[str] = []
 
-    # Header
-    kind = d.severity.name.capitalize()   # "Error", "Warning", "Info", "Hint"
+    kind = d.severity.name.capitalize()
     lines.append(f"### GHC {kind}")
     lines.append("")
 
-    # Raw GHC message in a code block
     lines.append("```")
     lines.append(d.message.strip())
     lines.append("```")
     lines.append("")
 
-    # AI content — only if present
     if d.ai_explanation:
         lines.append("**🤔 Let's think about this:**")
         lines.append("")
@@ -520,12 +486,10 @@ def _format_hover(d: GHCDiagnostic) -> str:
         lines.append("")
 
     if not d.ai_explanation and not d.ai_hint:
-        return ""   # Nothing useful to show — let the editor show its default
-
+        return ""  
     return "\n".join(lines)
 
 
-# ── Position helpers ───────────────────────────────────────────────────────
 
 def _position_in_span(position: Position, d: GHCDiagnostic) -> bool:
     """
@@ -551,7 +515,6 @@ def _range_overlaps(lsp_range: Range, d: GHCDiagnostic) -> bool:
     """Return True if the LSP range overlaps the diagnostic's span."""
     if not d.span:
         return False
-    # Convert LSP range to 1-indexed
     r_start_line = lsp_range.start.line + 1
     r_end_line   = lsp_range.end.line   + 1
     return not (r_end_line < d.span.start_line or r_start_line > d.span.end_line)

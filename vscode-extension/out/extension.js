@@ -54,7 +54,6 @@ async function activate(context) {
         const msg = `Cannot find server/main.py at: ${serverMain}\n\nPlease set haskellAiLsp.projectPath in VS Code settings to the full path of your ai-haskell-lsp folder.`;
         outputChannel.appendLine('ERROR: ' + msg);
         vscode_1.window.showErrorMessage(msg);
-        // Still register commands so they don't show "not found"
         registerCommands(context, outputChannel);
         return;
     }
@@ -127,13 +126,11 @@ async function createClient(pythonPath, serverMain, channel) {
 }
 function resolvePythonPath(channel) {
     const config = vscode_1.workspace.getConfiguration('haskellAiLsp');
-    // 1. Explicit setting
     const explicit = config.get('serverPath', '').trim();
     if (explicit) {
         channel.appendLine(`Using explicit Python path: ${explicit}`);
         return explicit;
     }
-    // 2. Python extension interpreter
     try {
         const pythonConfig = vscode_1.workspace.getConfiguration('python');
         const interpreter = pythonConfig.get('defaultInterpreterPath', '').trim();
@@ -143,7 +140,6 @@ function resolvePythonPath(channel) {
         }
     }
     catch { }
-    // 3. Windows: try 'python' before 'python3' (python3 often not found on Windows)
     const isWindows = process.platform === 'win32';
     const fallback = isWindows ? 'python' : 'python3';
     channel.appendLine(`Using fallback Python: ${fallback}`);
@@ -151,7 +147,6 @@ function resolvePythonPath(channel) {
 }
 function resolveServerMain(context, channel) {
     const config = vscode_1.workspace.getConfiguration('haskellAiLsp');
-    // 1. Explicit projectPath setting
     const projectPath = config.get('projectPath', '').trim();
     if (projectPath) {
         const candidate = path.join(projectPath, 'server', 'main.py');
@@ -161,7 +156,6 @@ function resolveServerMain(context, channel) {
         }
         channel.appendLine(`WARNING: projectPath set but server/main.py not found there`);
     }
-    // 2. Workspace root
     const folders = vscode_1.workspace.workspaceFolders;
     if (folders && folders.length > 0) {
         const candidate = path.join(folders[0].uri.fsPath, 'server', 'main.py');
@@ -170,7 +164,6 @@ function resolveServerMain(context, channel) {
             return candidate;
         }
     }
-    // 3. Bundled inside extension (for distributed .vsix)
     const bundled = path.join(context.extensionPath, 'server', 'main.py');
     channel.appendLine(`Trying bundled path: ${bundled}`);
     return bundled;
@@ -182,4 +175,3 @@ function getInitOptions() {
         groqModel: config.get('groqModel', 'llama-3.1-8b-instant'),
     };
 }
-//# sourceMappingURL=extension.js.map

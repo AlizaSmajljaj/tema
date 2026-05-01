@@ -33,7 +33,7 @@ When you write Haskell in your editor, the server:
 
 1. **Compiles your code** with GHC in type-check-only mode (`-fno-code -Wall`)
 2. **Parses the output** into structured diagnostics (type errors, scope errors, pattern match warnings, etc.)
-3. **Asks Claude** to explain each error in plain language, adapted to your experience level
+3. **Asks AI** to explain each error in plain language, adapted to your experience level
 4. **Delivers feedback** inline — red squiggles in the editor, with AI explanations on hover
 
 Beginners get detailed explanations with conceptual context. Students who have seen the

@@ -25,12 +25,12 @@ class ErrorCategory(Enum):
     """
     TYPE_ERROR = "type_error"
     SYNTAX_ERROR = "syntax_error"
-    SCOPE_ERROR = "scope_error"           # out-of-scope variable / unknown name
-    PATTERN_MATCH = "pattern_match"       # non-exhaustive patterns, redundant match
-    RECURSION = "recursion"               # infinite type, occurs check
+    SCOPE_ERROR = "scope_error"           
+    PATTERN_MATCH = "pattern_match"     
+    RECURSION = "recursion"              
     IMPORT_ERROR = "import_error"
     KIND_ERROR = "kind_error"
-    INSTANCE_ERROR = "instance_error"     # missing / overlapping typeclass instances
+    INSTANCE_ERROR = "instance_error"   
     WARNING_GENERIC = "warning_generic"
     UNKNOWN = "unknown"
 
@@ -66,14 +66,13 @@ class GHCDiagnostic:
     """
     severity: Severity
     span: SourceSpan
-    message: str                          # raw GHC message (may be multiline)
+    message: str                          
     category: ErrorCategory = ErrorCategory.UNKNOWN
-    error_code: Optional[str] = None      # e.g. "-Wunused-imports", "GHC-12345"
-    context_lines: list[str] = field(default_factory=list)  # source lines near error
-    related: list["GHCDiagnostic"] = field(default_factory=list)  # sub-notes
+    error_code: Optional[str] = None    
+    context_lines: list[str] = field(default_factory=list)  
+    related: list["GHCDiagnostic"] = field(default_factory=list)  
     raw_ghc_output: str = ""
     
-    # Set by AI engine after processing
     ai_explanation: Optional[str] = None
     ai_hint: Optional[str] = None
 
@@ -111,9 +110,9 @@ class CompilationResult:
     """
     file: str
     diagnostics: list[GHCDiagnostic] = field(default_factory=list)
-    success: bool = False                 # True only if GHC exit code == 0
+    success: bool = False                
     ghc_version: Optional[str] = None
-    raw_stderr: str = ""                  # preserved for debugging
+    raw_stderr: str = ""                 
 
     @property
     def errors(self) -> list[GHCDiagnostic]:

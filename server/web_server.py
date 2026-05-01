@@ -49,7 +49,6 @@ _engine  = AIFeedbackEngine(context_manager=_context)
 MAX_AI_ENRICHMENTS = 5
 
 
-# ── Auth helper ────────────────────────────────────────────────────────────
 
 def _get_user(authorization: str = "") -> dict | None:
     """Extract and validate bearer token from Authorization header."""
@@ -59,7 +58,6 @@ def _get_user(authorization: str = "") -> dict | None:
     return get_user_by_token(token) if token else None
 
 
-# ── Serve HTML ─────────────────────────────────────────────────────────────
 
 @app.get("/")
 async def serve_editor():
@@ -86,12 +84,10 @@ async def test_everything():
     import os
     results = {}
 
-    # Check Groq API key
     api_key = os.environ.get("GROQ_API_KEY", "")
     results["groq_key_present"]    = bool(api_key)
     results["groq_key_looks_valid"] = api_key.startswith("gsk_") if api_key else False
 
-    # Check Ollama
     try:
         r = req_lib.get("http://localhost:11434/api/tags", timeout=2)
         results["ollama_running"]   = r.status_code == 200
@@ -101,7 +97,6 @@ async def test_everything():
         results["ollama_running"]   = False
         results["ollama_models"]    = []
 
-    # Check GHC
     try:
         import subprocess
         r = subprocess.run(["ghc", "--version"], capture_output=True, text=True, timeout=5)
@@ -111,7 +106,6 @@ async def test_everything():
         results["ghc_found"]   = False
         results["ghc_version"] = "not found"
 
-    # Check database
     try:
         from server.database import get_conn
         with get_conn() as conn:
@@ -122,7 +116,6 @@ async def test_everything():
         results["database_ok"]   = False
         results["database_error"] = str(e)
 
-    # Overall status
     results["all_ok"] = (
         results["ghc_found"] and
         results["database_ok"] and
@@ -132,7 +125,6 @@ async def test_everything():
     return results
 
 
-# ── Auth endpoints ─────────────────────────────────────────────────────────
 
 @app.post("/api/register")
 async def register(request: Request):
@@ -175,8 +167,6 @@ async def me(authorization: str = Header(default="")):
     stats = get_user_stats(user["id"])
     return JSONResponse({"username": user["username"], "id": user["id"], **stats})
 
-
-# ── Progress endpoints ─────────────────────────────────────────────────────
 
 @app.get("/api/progress")
 async def get_progress(authorization: str = Header(default="")):
@@ -233,7 +223,6 @@ async def load_problem(problem_id: str, authorization: str = Header(default=""))
     })
 
 
-# ── AI chat proxy ──────────────────────────────────────────────────────────
 
 @app.post("/api/chat")
 async def chat_proxy(request: Request, authorization: str = Header(default="")):
@@ -244,13 +233,12 @@ async def chat_proxy(request: Request, authorization: str = Header(default="")):
     body       = await request.json()
     messages   = body.get("messages", [])
     problem_id = body.get("problem_id", "")
-    context    = body.get("context", "error")   # "error" or "think"
+    context    = body.get("context", "error")   
     user       = _get_user(authorization)
 
     content  = None
     provider = None
 
-    # ── Try Groq ───────────────────────────────────────────────────────
     api_key = os.environ.get("GROQ_API_KEY", "")
     if api_key:
         try:
@@ -270,7 +258,6 @@ async def chat_proxy(request: Request, authorization: str = Header(default="")):
         except Exception as exc:
             logger.warning("Groq failed (%s), trying Ollama", exc)
 
-    # ── Fall back to Ollama ────────────────────────────────────────────
     if content is None:
         ollama_model = os.environ.get("OLLAMA_MODEL", "llama3.2")
         ollama_url   = os.environ.get("OLLAMA_URL",   "http://localhost:11434")
@@ -295,9 +282,7 @@ async def chat_proxy(request: Request, authorization: str = Header(default="")):
     if content is None:
         return JSONResponse({"content": "AI unavailable — check GROQ_API_KEY or start Ollama."})
 
-    # ── Save conversation to database ──────────────────────────────────
     if user and problem_id:
-        # Save the last user message and this AI response
         user_msgs = [m for m in messages if m.get("role") == "user"]
         if user_msgs:
             save_message(user["id"], problem_id, "user", user_msgs[-1]["content"], context)
@@ -306,7 +291,6 @@ async def chat_proxy(request: Request, authorization: str = Header(default="")):
     return JSONResponse({"content": content, "provider": provider})
 
 
-# ── Run code ───────────────────────────────────────────────────────────────
 
 @app.post("/api/run")
 async def run_code(request: Request, authorization: str = Header(default="")):
@@ -317,7 +301,6 @@ async def run_code(request: Request, authorization: str = Header(default="")):
     if not source.strip():
         return JSONResponse({"output": "", "error": "Empty source"})
 
-    # Resolve GHC the same way the bridge does — respects GHC_PATH env var
     ghc_path = os.environ.get("GHC_PATH") or _shutil.which("ghc")
     if not ghc_path:
         return JSONResponse({"output": "", "error": "GHC not found. Install GHC or set GHC_PATH in .env"})
@@ -329,23 +312,19 @@ async def run_code(request: Request, authorization: str = Header(default="")):
         with open(src_path, "w", encoding="utf-8") as f:
             f.write(source)
 
-        # Full compilation (with code generation, unlike -fno-code used for diagnostics)
         compile_result = subprocess.run(
             [ghc_path, "-o", exe_path, src_path],
             capture_output=True, text=True, timeout=30, cwd=tmpdir,
         )
         if compile_result.returncode != 0:
-            # Return the actual GHC error so the student can see what's wrong
             err_text = compile_result.stderr or compile_result.stdout or "Compilation failed."
             return JSONResponse({"output": "", "error": err_text.strip()})
 
-        # Execute the binary
         run_result = subprocess.run(
             [exe_path],
             capture_output=True, text=True, timeout=10, cwd=tmpdir,
         )
         output = run_result.stdout
-        # Combine stdout + stderr so runtime errors (like pattern match failure) are visible
         if run_result.returncode != 0:
             error_out = run_result.stderr.strip()
             return JSONResponse({"output": output, "error": error_out})
@@ -358,11 +337,8 @@ async def run_code(request: Request, authorization: str = Header(default="")):
     except Exception as exc:
         return JSONResponse({"output": "", "error": str(exc)})
     finally:
-        # Clean up after execution (not before, unlike TemporaryDirectory context manager)
         _shutil.rmtree(tmpdir, ignore_errors=True)
 
-
-# ── Diagnostic conversion ──────────────────────────────────────────────────
 
 def _diagnostic_to_dict(d: GHCDiagnostic) -> dict:
     return {
@@ -379,7 +355,6 @@ def _diagnostic_to_dict(d: GHCDiagnostic) -> dict:
     }
 
 
-# ── WebSocket ──────────────────────────────────────────────────────────────
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

@@ -25,10 +25,8 @@ from .parser import parse_ghc_output
 
 logger = logging.getLogger(__name__)
 
-# Thread pool for running GHC (blocking subprocess) without blocking the event loop
 _executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="ghc-worker")
 
-# Simple in-memory LRU-style cache: hash → CompilationResult
 _cache: dict[str, CompilationResult] = {}
 _CACHE_MAX = 50
 
@@ -51,7 +49,7 @@ def _build_ghc_command(ghc_path: str, hs_file: str, use_json: bool) -> list[str]
 
     Flags used:
       -fno-code        — skip code generation; type-check only (fast)
-      -Wall            — enable all warnings (educational value)
+      -Wall            — enable all warnings 
       -fshow-warning-groups — show which warning group each warning belongs to
       -fforce-recomp   — always recompile (we're checking a temp file)
     """
@@ -74,16 +72,11 @@ def _run_ghc_sync(source: str, original_path: str) -> CompilationResult:
 
     Writes source to a temp file, runs GHC, parses output, cleans up.
     """
-    # --- Cache lookup ---
     content_hash = hashlib.sha256(source.encode()).hexdigest()
     if content_hash in _cache:
         logger.debug("Cache hit for %s", original_path)
         return _cache[content_hash]
 
-    # --- Write temp file ---
-    # We preserve the original filename so GHC error messages show the real path,
-    # but ensure it has a .hs-like suffix so GHC recognises it as Haskell and
-    # our parser (which historically expected *.hs) can match locations.
     suffix = Path(original_path).suffix or ".hs"
     base_name = Path(original_path).name
     if not base_name.endswith(suffix):
@@ -97,7 +90,6 @@ def _run_ghc_sync(source: str, original_path: str) -> CompilationResult:
 
         ghc_path = _find_ghc()
 
-        # --- Try JSON first (GHC >= 9.4), fall back to classic ---
         for use_json in (True, False):
             cmd = _build_ghc_command(ghc_path, tmp_path, use_json=use_json)
             logger.debug("Running GHC: %s", " ".join(cmd))
@@ -107,26 +99,22 @@ def _run_ghc_sync(source: str, original_path: str) -> CompilationResult:
                     cmd,
                     capture_output=True,
                     text=True,
-                    timeout=30,          # 30s hard timeout
+                    timeout=30,         
                     cwd=tmp_dir,
                 )
             except subprocess.TimeoutExpired:
                 logger.error("GHC timed out on %s", original_path)
                 return CompilationResult(file=original_path, success=False,
-                                         raw_stderr="GHC timed out after 30 seconds.")
+                                        raw_stderr="GHC timed out after 30 seconds.")
 
             stderr = proc.stderr
-            # GHC on some platforms writes diagnostics to stdout in JSON mode
             if use_json and not stderr.strip():
                 stderr = proc.stdout
 
-            # If JSON mode produced no JSON lines, retry with classic
             if use_json and not any(l.strip().startswith("{") for l in stderr.splitlines()):
                 logger.debug("JSON mode produced no JSON output, retrying classic")
                 continue
 
-            # Rewrite temp path → original path in messages so the editor
-            # can correctly map errors back to the open document.
             stderr_mapped = stderr.replace(tmp_path, original_path)
 
             result = parse_ghc_output(
@@ -135,14 +123,11 @@ def _run_ghc_sync(source: str, original_path: str) -> CompilationResult:
                 exit_code=proc.returncode,
             )
 
-            # Remap spans from temp path to original path
             for diag in result.diagnostics:
                 if diag.span.file == tmp_path:
                     diag.span.file = original_path
 
-            # --- Cache result ---
             if len(_cache) >= _CACHE_MAX:
-                # Evict oldest entry (insertion-order dict in Python 3.7+)
                 _cache.pop(next(iter(_cache)))
             _cache[content_hash] = result
 
@@ -163,7 +148,6 @@ def _run_ghc_sync(source: str, original_path: str) -> CompilationResult:
             raw_stderr=f"Internal error: {e}",
         )
     finally:
-        # Always clean up temp directory
         try:
             import shutil as _shutil
             _shutil.rmtree(tmp_dir, ignore_errors=True)
@@ -216,7 +200,6 @@ async def get_ghc_version() -> Optional[str]:
                 [ghc, "--version"],
                 capture_output=True, text=True, timeout=5,
             )
-            # "The Glorious Glasgow Haskell Compilation System, version 9.4.7"
             match = __import__("re").search(r"version\s+([\d.]+)", proc.stdout + proc.stderr)
             return match.group(1) if match else proc.stdout.strip()
 
