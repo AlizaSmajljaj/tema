@@ -55,7 +55,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/ai-haskell-lsp.git
+git clone https://github.com/AlizaSmajljaj/tema.git
 cd ai-haskell-lsp
 ```
 
